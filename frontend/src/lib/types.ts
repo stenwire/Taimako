@@ -1,0 +1,84 @@
+// User types
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  created_at: string;
+}
+
+// Business Profile types
+export interface BusinessProfile {
+  id: string;
+  user_id: string;
+  business_name: string;
+  description: string;
+  website: string;
+  custom_agent_instruction: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBusinessProfileData {
+  business_name: string;
+  description: string;
+  website: string;
+  custom_agent_instruction: string;
+}
+
+export interface UpdateBusinessProfileData {
+  business_name?: string;
+  description?: string;
+  website?: string;
+  custom_agent_instruction?: string;
+}
+
+// Document types
+export interface Document {
+  filename: string;
+  size?: number;
+  uploaded_at?: string;
+}
+
+export interface ProcessedDocument {
+  filename: string;
+  chunks_created: number;
+  status: 'success' | 'error';
+}
+
+// Chat types
+export interface Message {
+  role: 'user' | 'agent';
+  content: string;
+  sources?: string[];
+  timestamp?: string;
+}
+
+export interface ChatResponse {
+  response: string;
+  sources: string[];
+}
+
+// Auth types
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface SignupData {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+// API Response wrapper
+export interface ApiResponse<T> {
+  status: 'success' | 'error';
+  message?: string;
+  data?: T;
+}
