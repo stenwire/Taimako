@@ -49,7 +49,27 @@ class WidgetConfigResponse(BaseModel):
     theme: str
     primary_color: str
     icon_url: Optional[str]
-    # We might want to add owner info if needed, but usually not exposed
+    welcome_message: Optional[str]
+    initial_ai_message: Optional[str]
+    send_initial_message_automatically: Optional[bool] = True
     
+    class Config:
+        from_attributes = True
+
+# Session Management
+class SessionStartRequest(BaseModel):
+    guest_id: str
+    message: str
+    origin: str = "auto-start" # manual, auto-start, resumed
+
+class SessionHistoryResponse(BaseModel):
+    id: str
+    created_at: datetime
+    last_message_at: datetime
+    origin: str
+    summary: Optional[str] = None
+    summary_generated_at: Optional[datetime] = None
+    top_intent: Optional[str] = None
+
     class Config:
         from_attributes = True

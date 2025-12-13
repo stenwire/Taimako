@@ -140,6 +140,28 @@ body {
   font-size: 13px;
 }
 
+
+/* ===================================
+   Interaction Utilities
+   =================================== */
+
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+select {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+a[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* ===================================
    Component Utilities
    =================================== */

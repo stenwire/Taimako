@@ -30,6 +30,12 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
 # Configure CORS
+# origins = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:5500",
+#     "http://localhost:8000",
+# ]
+
 origins = ["*"]
 
 app.add_middleware(
