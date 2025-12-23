@@ -311,7 +311,7 @@ async def process_chat_message(db: Session, widget: WidgetSettings, guest: Guest
     # 2. Get business context
     owner_user = db.query(User).filter(User.id == widget.user_id).first()
     if not owner_user or not owner_user.business:
-        business_name = "Sten"
+        business_name = "Taimako.AI"
         instruction = None
         intents = None
     else:

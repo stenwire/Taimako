@@ -5,6 +5,8 @@ import { getAccessToken, generateFollowUp } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import { User, MessageSquare, Clock, Smartphone, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const BACKEND_URL = 'http://localhost:8000'; // Env var
 
@@ -402,7 +404,27 @@ export default function WidgetInteractionsPage() {
                           : 'bg-indigo-600 text-white'
                           }`}
                       >
-                        <p>{msg.message_text}</p>
+                        <div
+                          className={`prose prose-sm max-w-none break-words
+                            ${msg.sender === 'guest'
+                              ? 'text-gray-800 prose-headings:text-gray-800 prose-strong:text-gray-800 prose-p:text-gray-800 prose-li:text-gray-800 prose-ul:text-gray-800 prose-ol:text-gray-800 prose-a:text-blue-600 prose-a:underline prose-code:text-gray-800 prose-code:bg-gray-100'
+                              : 'text-white prose-headings:text-white prose-strong:text-white prose-p:text-white prose-li:text-white prose-ul:text-white prose-ol:text-white prose-a:text-white/90 prose-a:underline prose-code:text-white prose-code:bg-white/20'
+                            }
+                            [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>li]:my-0.5 [&>p]:my-1 [&:first-child]:mt-0 [&:last-child]:mb-0
+                          `}
+                        >
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ node, ...props }) => <p className="mb-1 last:mb-0" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="pl-4 mb-1 list-disc" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="pl-4 mb-1 list-decimal" {...props} />,
+                              li: ({ node, ...props }) => <li className="mb-0.5" {...props} />
+                            }}
+                          >
+                            {msg.message_text}
+                          </ReactMarkdown>
+                        </div>
                         <p className="text-[10px] opacity-70 mt-1 min-w-[60px] text-right">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>

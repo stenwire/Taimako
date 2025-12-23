@@ -11,6 +11,8 @@ import {
   X,
   Send
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Types
 interface WidgetConfig {
@@ -72,7 +74,7 @@ export default function WidgetPage() {
   // === CRITICAL: Listen for focus command from parent (widget.js) ===
   useEffect(() => {
     const handleFocusMessage = (event: MessageEvent) => {
-      if (event.data.type === "STEN_WIDGET_FOCUS") {
+      if (event.data.type === "TAIMAKO_WIDGET_FOCUS") {
         if (view === 'form' && nameInputRef.current) {
           nameInputRef.current.focus();
           nameInputRef.current.select();
@@ -158,7 +160,7 @@ export default function WidgetPage() {
 
       const data: GuestStartResponse = await res.json();
       setGuestId(data.guest_id);
-      localStorage.setItem(`sten_guest_${publicWidgetId}`, data.guest_id);
+      localStorage.setItem(`taimako_guest_${publicWidgetId}`, data.guest_id);
       setView('chat');
       setSessionId(null); // Explicitly no session yet
       setMessages([]); // Clear messages
@@ -606,7 +608,28 @@ export default function WidgetPage() {
                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
                     }`}
                 >
-                  {msg.message_text}
+                  <div
+                    className={`prose prose-sm max-w-none break-words
+                      ${msg.sender === 'guest'
+                        ? 'text-white prose-headings:text-white prose-strong:text-white prose-p:text-white prose-li:text-white prose-ul:text-white prose-ol:text-white prose-a:text-white/90 prose-a:underline prose-code:text-white prose-code:bg-white/20'
+                        : 'text-gray-800 prose-headings:text-gray-800 prose-strong:text-gray-800 prose-p:text-gray-800 prose-li:text-gray-800 prose-ul:text-gray-800 prose-ol:text-gray-800 prose-a:text-blue-600 prose-a:underline prose-code:text-gray-800 prose-code:bg-gray-100'}
+                      [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4 [&>li]:my-0.5 [&>p]:my-1 [&:first-child]:mt-0 [&:last-child]:mb-0
+                    `}
+                  >
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Force paragraphs to have minimal margins for chat compactness
+                        p: ({ node, ...props }) => <p className="mb-1 last:mb-0" {...props} />,
+                        // Ensure lists are compact
+                        ul: ({ node, ...props }) => <ul className="pl-4 mb-1 list-disc" {...props} />,
+                        ol: ({ node, ...props }) => <ol className="pl-4 mb-1 list-decimal" {...props} />,
+                        li: ({ node, ...props }) => <li className="mb-0.5" {...props} />
+                      }}
+                    >
+                      {msg.message_text}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             ))}
@@ -646,7 +669,7 @@ export default function WidgetPage() {
               </button>
             </div>
             <div className="text-center mt-2 text-xs text-gray-400">
-              Powered by Sten
+              Powered by Taimako.AI
             </div>
           </div>
         </>

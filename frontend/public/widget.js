@@ -12,7 +12,7 @@
   }
 
   if (!currentScript) {
-    console.error("Sten Widget: Missing data-widget-id on script tag.");
+    console.error("Taimako.AI Widget: Missing data-widget-id on script tag.");
     return;
   }
 
@@ -20,7 +20,7 @@
 
   // Main container (launcher + iframe)
   const container = document.createElement("div");
-  container.id = "sten-widget-container";
+  container.id = "taimako-widget-container";
   container.style.position = "fixed";
   container.style.bottom = "20px";
   container.style.right = "20px";
@@ -36,7 +36,7 @@
       return res.json();
     })
     .then(config => initWidget(config))
-    .catch(err => console.error("Sten Widget Error:", err));
+    .catch(err => console.error("Taimako.AI Widget Error:", err));
 
   function initWidget(config) {
     const primaryColor = config.primary_color || "#000000";
@@ -101,7 +101,7 @@
     // Iframe
     const iframe = document.createElement("iframe");
     iframe.src = `${FRONTEND_URL}/widget/${widgetId}?${params.toString()}`;
-    iframe.title = "Sten Chat Widget";
+    iframe.title = "Taimako.AI Chat Widget";
     iframe.allow = "clipboard-write";
     iframe.style.width = "100%";
     iframe.style.height = "100%";
@@ -130,7 +130,7 @@
           iframe.contentWindow.focus();
         }
         // Tell React app to focus the first input
-        iframe.contentWindow?.postMessage({ type: "STEN_WIDGET_FOCUS" }, "*");
+        iframe.contentWindow?.postMessage({ type: "TAIMAKO_WIDGET_FOCUS" }, "*");
       }, 200);
     };
 

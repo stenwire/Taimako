@@ -129,7 +129,7 @@ export default function WidgetSettingsPage() {
 
   const copyEmbedCode = () => {
     if (!settings?.public_widget_id) return;
-    const code = `<!-- Sten Chat Widget -->
+    const code = `<!-- Taimako.AI Chat Widget -->
 <script>
   (function() {
       var s = document.createElement("script");
@@ -313,7 +313,7 @@ export default function WidgetSettingsPage() {
             <p className="text-sm text-gray-600">Copy this code and paste it into the <code>&lt;head&gt;</code> of your website.</p>
 
             <div className="bg-gray-900 text-gray-100 p-4 rounded-md text-xs font-mono overflow-x-auto whitespace-pre">
-              {`<!-- Sten Chat Widget -->
+              {`<!-- Taimako.AI Chat Widget -->
 <script>
   (function() {
       var s = document.createElement("script");
