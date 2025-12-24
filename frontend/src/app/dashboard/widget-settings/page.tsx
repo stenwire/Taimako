@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Check, Copy } from 'lucide-react';
+import { Sparkles, Check, Copy, Plus, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
@@ -25,6 +25,9 @@ interface WidgetSettings {
   send_initial_message_automatically?: boolean;
   whatsapp_enabled?: boolean;
   whatsapp_number?: string;
+  max_messages_per_session?: number;
+  max_sessions_per_day?: number;
+  whitelisted_domains?: string[];
 }
 
 type Tab = 'business' | 'appearance' | 'installation';
@@ -40,6 +43,7 @@ export default function WidgetSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('business');
 
   const [copied, setCopied] = useState(false);
+  const [newDomain, setNewDomain] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -91,7 +95,10 @@ export default function WidgetSettingsPage() {
           initial_ai_message: settings.initial_ai_message,
           send_initial_message_automatically: settings.send_initial_message_automatically,
           whatsapp_enabled: settings.whatsapp_enabled,
-          whatsapp_number: settings.whatsapp_number
+          whatsapp_number: settings.whatsapp_number,
+          max_messages_per_session: settings.max_messages_per_session,
+          max_sessions_per_day: settings.max_sessions_per_day,
+          whitelisted_domains: settings.whitelisted_domains
         }),
       });
       if (res.ok) {
@@ -340,6 +347,87 @@ export default function WidgetSettingsPage() {
                           <span className="block text-xs text-[var(--text-secondary)] mt-0.5">If unchecked, the AI waits for the user to type first.</span>
                         </div>
                       </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[var(--border-subtle)] pt-8 space-y-6">
+                  <h3 className="text-sm font-bold text-[var(--brand-primary)] uppercase tracking-wider">Limits & Security</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input
+                      label="Max Messages / Session"
+                      type="number"
+                      value={settings?.max_messages_per_session || 50}
+                      onChange={(e) => settings && setSettings({ ...settings, max_messages_per_session: parseInt(e.target.value) })}
+                    />
+                    <Input
+                      label="Max Sessions / Day"
+                      type="number"
+                      value={settings?.max_sessions_per_day || 5}
+                      onChange={(e) => settings && setSettings({ ...settings, max_sessions_per_day: parseInt(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Whitelisted Domains</label>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://example.com"
+                        value={newDomain}
+                        onChange={(e) => setNewDomain(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newDomain && settings) {
+                              const current = settings.whitelisted_domains || [];
+                              if (!current.includes(newDomain)) {
+                                setSettings({ ...settings, whitelisted_domains: [...current, newDomain] });
+                                setNewDomain('');
+                              }
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          if (newDomain && settings) {
+                            const current = settings.whitelisted_domains || [];
+                            if (!current.includes(newDomain)) {
+                              setSettings({ ...settings, whitelisted_domains: [...current, newDomain] });
+                              setNewDomain('');
+                            }
+                          }
+                        }}
+                        disabled={!newDomain}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(settings?.whitelisted_domains || []).map((domain) => (
+                        <div
+                          key={domain}
+                          className="group flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full text-sm text-[var(--text-secondary)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all"
+                        >
+                          <span>{domain}</span>
+                          <button
+                            onClick={() => {
+                              if (settings) {
+                                const current = settings.whitelisted_domains || [];
+                                setSettings({ ...settings, whitelisted_domains: current.filter(d => d !== domain) });
+                              }
+                            }}
+                            className="w-4 h-4 rounded-full flex items-center justify-center hover:text-[var(--error)] text-[var(--text-tertiary)] transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {(!settings?.whitelisted_domains || settings.whitelisted_domains.length === 0) && (
+                        <p className="text-xs text-[var(--text-tertiary)] py-1">No domains whitelisted. Widget will work on all domains (not recommended).</p>
+                      )}
                     </div>
                   </div>
                 </div>

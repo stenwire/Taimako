@@ -56,6 +56,9 @@ class WidgetConfigResponse(BaseModel):
     send_initial_message_automatically: Optional[bool] = True
     whatsapp_enabled: Optional[bool] = False
     whatsapp_number: Optional[str] = None
+    max_messages_per_session: Optional[int] = 50
+    max_sessions_per_day: Optional[int] = 5
+    whitelisted_domains: Optional[List[str]] = None
     
     class Config:
         from_attributes = True

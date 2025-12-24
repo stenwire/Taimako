@@ -26,6 +26,8 @@ class Business(Base):
     website = Column(String, nullable=True)
     custom_agent_instruction = Column(Text, nullable=True, default=DEFAULT_AGENT_INSTRUCTION_PLACEHOLDER)
     intents = Column(JSON, nullable=True)
+    logo_url = Column(String, nullable=True) # URL to business logo
+    gemini_api_key = Column(String, nullable=True) # Encrypted API Key
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

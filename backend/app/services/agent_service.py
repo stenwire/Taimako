@@ -58,7 +58,8 @@ async def run_conversation(
     business_name: str = APP_NAME,
     custom_instruction: Optional[str] = None,
     session_id: Optional[str] = None,
-    intents: Optional[list] = None
+    intents: Optional[list] = None,
+    api_key: Optional[str] = None
 ):
     """
     Run a conversation with a dynamically configured agent.
@@ -69,7 +70,9 @@ async def run_conversation(
         business_name: Name of the business
         custom_instruction: Optional custom agent instructions
         session_id: Optional session identifier (defaults to user_id)
+        session_id: Optional session identifier (defaults to user_id)
         intents: Optional list of business intents
+        api_key: Optional Google Gemini API key to use
         
     Returns:
         Agent's response text
@@ -78,7 +81,7 @@ async def run_conversation(
         session_id = user_id
     
     # Create agent dynamically based on business configuration
-    agent = AgentFactory.create_rag_agent(business_name, custom_instruction, intents=intents)
+    agent = AgentFactory.create_rag_agent(business_name, custom_instruction, intents=intents, api_key=api_key)
     
     # Create runner with dynamic agent
     runner = Runner(

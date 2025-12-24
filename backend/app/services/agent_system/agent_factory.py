@@ -44,7 +44,7 @@ class AgentFactory:
         )
     
     @staticmethod
-    def create_rag_agent(business_name: str, custom_instruction: Optional[str] = None, intents: Optional[list] = None):
+    def create_rag_agent(business_name: str, custom_instruction: Optional[str] = None, intents: Optional[list] = None, api_key: Optional[str] = None):
         """
         Create a RAG agent with business-specific configuration.
         
@@ -77,10 +77,25 @@ class AgentFactory:
         greeting_agent = AgentFactory.create_greeting_agent()
         farewell_agent = AgentFactory.create_farewell_agent()
         
+        # Determine model to use
+        model = MODEL_GEMINI_2_0_FLASH
+        if api_key:
+             # Use LiteLlm with specific API key if provided
+             # Note: LiteLlm requires provider prefix 'gemini/' usually if using litellm directly, 
+             # but ADK might handle "gemini-2.0-flash".
+             # Safest is to try preserving the string if it works, OR wrap it.
+             # Assuming LiteLlm constructor takes model and api_key.
+             # If "gemini-2.0-flash" works as string, we use it.
+             # Helper to ensure we use the right format for LiteLlm if needed.
+             model_name = MODEL_GEMINI_2_0_FLASH
+             if not model_name.startswith("gemini/"):
+                 model_name = f"gemini/{model_name}"
+             model = LiteLlm(model=model_name, api_key=api_key)
+
         # Create and return the main RAG agent
         return Agent(
             name="rag_agent",
-            model=MODEL_GEMINI_2_0_FLASH, 
+            model=model, 
             description=f"Main agent for {business_name}. Provides context for questions, delegates greetings/farewells.",
             instruction=base_instruction,
             tools=[get_context],

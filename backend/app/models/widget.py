@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.db.base import Base
@@ -25,6 +25,12 @@ class WidgetSettings(Base):
     send_initial_message_automatically = Column(Boolean, default=True)
     whatsapp_enabled = Column(Boolean, default=False)
     whatsapp_number = Column(String, nullable=True)
+    
+    # Limits & Security
+    max_messages_per_session = Column(Integer, default=50) # Default limit to prevent abuse
+    max_sessions_per_day = Column(Integer, default=5) # Default limit per user per day
+    whitelisted_domains = Column(JSON, nullable=True) # List of allowed domains (CORS/Origin check)
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

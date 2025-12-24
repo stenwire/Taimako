@@ -23,7 +23,9 @@ export default function BusinessProfilePage() {
     business_name: '',
     description: '',
     website: '',
-    custom_agent_instruction: ''
+    custom_agent_instruction: '',
+    logo_url: '',
+    gemini_api_key: ''
   });
 
   const personalityPresets = {
@@ -48,7 +50,9 @@ export default function BusinessProfilePage() {
           business_name: response.data.business_name,
           description: response.data.description,
           website: response.data.website,
-          custom_agent_instruction: response.data.custom_agent_instruction
+          custom_agent_instruction: response.data.custom_agent_instruction,
+          logo_url: response.data.logo_url || '',
+          gemini_api_key: '' // Never return API key
         });
       } else {
         // No profile found, start in edit mode
@@ -107,7 +111,9 @@ export default function BusinessProfilePage() {
         business_name: profile.business_name,
         description: profile.description,
         website: profile.website,
-        custom_agent_instruction: profile.custom_agent_instruction
+        custom_agent_instruction: profile.custom_agent_instruction,
+        logo_url: profile.logo_url || '',
+        gemini_api_key: ''
       });
       setEditing(false);
     }
@@ -199,6 +205,22 @@ export default function BusinessProfilePage() {
                   placeholder="https://acme.com"
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  disabled={!editing}
+                />
+                <Input
+                  label="Logo URL"
+                  type="url"
+                  placeholder="https://acme.com/logo.png"
+                  value={formData.logo_url || ''}
+                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                  disabled={!editing}
+                />
+                <Input
+                  label="Google Gemini API Key"
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={formData.gemini_api_key || ''}
+                  onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
                   disabled={!editing}
                 />
               </div>

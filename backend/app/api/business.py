@@ -7,6 +7,7 @@ from app.models.business import Business
 from app.schemas.business import BusinessCreate, BusinessUpdate, BusinessResponse
 from app.core.response_wrapper import success_response
 from app.services.analysis_agent import generate_business_intents
+from app.core.security_utils import encrypt_string
 
 router = APIRouter()
 
@@ -28,7 +29,9 @@ async def create_business(
         business_name=business_data.business_name,
         description=business_data.description,
         website=business_data.website,
-        custom_agent_instruction=business_data.custom_agent_instruction
+        custom_agent_instruction=business_data.custom_agent_instruction,
+        logo_url=business_data.logo_url,
+        gemini_api_key=encrypt_string(business_data.gemini_api_key) if business_data.gemini_api_key else None
     )
     db.add(business)
     db.commit()
@@ -73,6 +76,10 @@ async def update_business(
         business.custom_agent_instruction = business_data.custom_agent_instruction
     if business_data.intents is not None:
         business.intents = business_data.intents
+    if business_data.logo_url is not None:
+        business.logo_url = business_data.logo_url
+    if business_data.gemini_api_key is not None:
+        business.gemini_api_key = encrypt_string(business_data.gemini_api_key)
     
     db.commit()
     db.refresh(business)

@@ -15,6 +15,7 @@ export interface BusinessProfile {
   website: string;
   custom_agent_instruction: string;
   intents?: string[];
+  logo_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,8 @@ export interface CreateBusinessProfileData {
   website: string;
   custom_agent_instruction: string;
   intents?: string[];
+  logo_url?: string;
+  gemini_api_key?: string;
 }
 
 export interface UpdateBusinessProfileData {
@@ -33,6 +36,8 @@ export interface UpdateBusinessProfileData {
   website?: string;
   custom_agent_instruction?: string;
   intents?: string[];
+  logo_url?: string;
+  gemini_api_key?: string;
 }
 
 // Document types
@@ -98,6 +103,9 @@ export interface WidgetSettings {
   send_initial_message_automatically?: boolean;
   whatsapp_enabled?: boolean;
   whatsapp_number?: string;
+  max_messages_per_session?: number;
+  max_sessions_per_day?: number;
+  whitelisted_domains?: string[];
 }
 
 export interface UpdateWidgetSettings {
@@ -109,6 +117,9 @@ export interface UpdateWidgetSettings {
   send_initial_message_automatically?: boolean;
   whatsapp_enabled?: boolean;
   whatsapp_number?: string;
+  max_messages_per_session?: number;
+  max_sessions_per_day?: number;
+  whitelisted_domains?: string[];
 }
 
 export interface AnalyticsOverview {

@@ -1,14 +1,10 @@
-.PHONY: install start-backend start-frontend start-all clean
+.PHONY: start stop build
 
-install:
-	cd agentic_rag_api && uv sync
-	cd frontend && npm install
+start:
+	docker-compose up
 
-start-backend:
-	cd agentic_rag_api && uv run uvicorn app.main:app --reload --port 8000
+stop:
+	docker-compose down
 
-start-frontend:
-	cd frontend && npm run dev
-
-start-all:
-	make start-backend & make start-frontend
+build:
+	docker-compose build

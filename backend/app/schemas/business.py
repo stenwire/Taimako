@@ -8,9 +8,10 @@ class BusinessBase(BaseModel):
     website: Optional[str] = None
     custom_agent_instruction: Optional[str] = None
     intents: Optional[List[str]] = None
+    logo_url: Optional[str] = None
 
 class BusinessCreate(BusinessBase):
-    pass
+    gemini_api_key: Optional[str] = None
 
 class BusinessUpdate(BaseModel):
     business_name: Optional[str] = None
@@ -18,10 +19,13 @@ class BusinessUpdate(BaseModel):
     website: Optional[str] = None
     custom_agent_instruction: Optional[str] = None
     intents: Optional[List[str]] = None
+    logo_url: Optional[str] = None
+    gemini_api_key: Optional[str] = None
 
 class BusinessResponse(BusinessBase):
     id: str
     user_id: str
+    # gemini_api_key is not in Base, so safe.
     created_at: datetime
     updated_at: datetime
 

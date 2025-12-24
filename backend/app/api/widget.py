@@ -19,6 +19,8 @@ from app.schemas.widget import (
 from app.services.agent_service import run_conversation
 from app.auth.router import get_current_user
 from app.core.response_wrapper import success_response
+from app.core.security_utils import decrypt_string
+from datetime import timedelta
 
 # Additional Schema for Updating Settings
 from pydantic import BaseModel
@@ -32,16 +34,44 @@ class WidgetUpdate(BaseModel):
     send_initial_message_automatically: Optional[bool] = None
     whatsapp_enabled: Optional[bool] = None
     whatsapp_number: Optional[str] = None
+    max_messages_per_session: Optional[int] = None
+    max_sessions_per_day: Optional[int] = None
+    whitelisted_domains: Optional[List[str]] = None
 
 
 
 router = APIRouter()
 
 @router.get("/config/{public_widget_id}", response_model=WidgetConfigResponse)
-def get_widget_config(public_widget_id: str, db: Session = Depends(get_db)):
+def get_widget_config(
+    public_widget_id: str, 
+    request: Request,
+    db: Session = Depends(get_db)
+):
     widget = db.query(WidgetSettings).filter(WidgetSettings.public_widget_id == public_widget_id).first()
     if not widget:
         raise HTTPException(status_code=404, detail="Widget not found")
+        
+    # Domain Whitelisting Check
+    if widget.whitelisted_domains:
+        origin = request.headers.get("origin")
+        print(f"\n\nOrigin: {origin}\n\n")
+        # If origin is null (e.g. direct curl) or not in whitelist, strip or block?
+        # Requirement says "it will only work under the set domains".
+        # If strict, we raise 403.
+        # However, for local dev or if origin is missing, we might need care.
+        # Let's assume strict if list is present and origin is set.
+        if origin:
+            # Simple check: origin must match one of the entries exactly or maybe substring? 
+            # Usually exact match of scheme+domain+port.
+            # Allowing localhost for leniency if not explicit? No, user sets rules.
+            if origin not in widget.whitelisted_domains:
+                # We can either 403 or just not return config? 
+                # Better to 403 to indicate policy violation.
+                # But CORS might block it anyway if we configured CORS middleware dynamically.
+                # Since we likely have global CORS *, we enforce here.
+                raise HTTPException(status_code=403, detail="Domain not allowed")
+    
     return widget
 
 @router.get("/my-settings", response_model=None)
@@ -98,6 +128,15 @@ def update_my_widget_settings(
         
     if settings.whatsapp_number is not None:
         widget.whatsapp_number = settings.whatsapp_number
+        
+    if settings.max_messages_per_session is not None:
+        widget.max_messages_per_session = settings.max_messages_per_session
+        
+    if settings.max_sessions_per_day is not None:
+        widget.max_sessions_per_day = settings.max_sessions_per_day
+        
+    if settings.whitelisted_domains is not None:
+        widget.whitelisted_domains = settings.whitelisted_domains
         
     db.commit()
     db.refresh(widget)
@@ -292,6 +331,19 @@ async def init_guest_session(
         raise HTTPException(status_code=404, detail="Guest not found")
         
     # Create new session
+    # Check Daily Session Limit
+    if guest.total_sessions is not None: # Though total_sessions is lifetime.
+        # We need sessions today.
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        sessions_today = db.query(ChatSession).filter(
+            ChatSession.guest_id == guest.id,
+            ChatSession.created_at >= today_start
+        ).count()
+        
+        limit = widget.max_sessions_per_day or 5
+        if sessions_today >= limit:
+             raise HTTPException(status_code=429, detail="Daily session limit reached")
+
     session = ChatSession(
         guest_id=guest.id,
         origin=session_in.origin
@@ -424,13 +476,42 @@ async def process_chat_message(db: Session, widget: WidgetSettings, guest: Guest
         intents = owner_user.business.intents
 
     # 3. Call AI
+    # Check Message Limit
+    if session_id:
+        current_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if current_session:
+             limit = widget.max_messages_per_session or 50
+             # user_messages is user only. total is user+ai. Requirement: "maximum messages per session per user" usually means user messages.
+             # or total? "Businesses should be able to se maximum messages per session per user"
+             # Let's limit USER messages.
+             if (current_session.user_messages or 0) >= limit:
+                 # We can silently ignore or return a system message.
+                 # Returning a system message as "AI" is easiest.
+                 return WidgetChatResponse(
+                    message=GuestMessageSchema.model_validate(guest_msg),
+                    response=GuestMessageSchema(
+                        id=str(uuid.uuid4()),
+                        guest_id=guest.id,
+                        session_id=session_id,
+                        sender="ai",
+                        message_text="Session message limit reached. Please start a new session.",
+                        created_at=datetime.now(timezone.utc)
+                    )
+                 )
+
+    # Decrypt API Key
+    decrypted_key = None
+    if owner_user and owner_user.business and owner_user.business.gemini_api_key:
+        decrypted_key = decrypt_string(owner_user.business.gemini_api_key)
+
     ai_response_text = await run_conversation(
         message=message_text,
         user_id=widget.user_id,
         business_name=business_name,
         custom_instruction=instruction,
         session_id=session_id, # Use session_id for thread consistency
-        intents=intents
+        intents=intents,
+        api_key=decrypted_key
     )
 
     # 4. Store AI response
