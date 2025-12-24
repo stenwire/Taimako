@@ -46,15 +46,20 @@ const Sidebar: React.FC<SidebarProps> = ({ sections, collapsed = false }) => {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-200',
+                      'flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-200 group relative',
                       'text-[14px] font-medium',
                       isActive
-                        ? 'bg-[var(--bg-primary)] text-[var(--brand-primary)] shadow-[var(--shadow-sm)]'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]'
+                        ? 'bg-[var(--brand-primary)] text-white shadow-[var(--shadow-glow)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
                     )}
                   >
-                    <Icon className={cn('w-5 h-5 flex-shrink-0', isActive ? 'text-[var(--brand-primary)]' : 'text-[var(--text-tertiary)]')} />
+                    <Icon className={cn('w-5 h-5 flex-shrink-0 transition-colors', isActive ? 'text-white' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]')} />
                     {!collapsed && <span>{item.label}</span>}
+                    {collapsed && (
+                      <div className="absolute left-14 bg-[var(--brand-primary)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                        {item.label}
+                      </div>
+                    )}
                   </Link>
                 );
               })}

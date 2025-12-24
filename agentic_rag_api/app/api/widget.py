@@ -18,6 +18,7 @@ from app.schemas.widget import (
 )
 from app.services.agent_service import run_conversation
 from app.auth.router import get_current_user
+from app.core.response_wrapper import success_response
 
 # Additional Schema for Updating Settings
 from pydantic import BaseModel
@@ -43,7 +44,7 @@ def get_widget_config(public_widget_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Widget not found")
     return widget
 
-@router.get("/my-settings", response_model=WidgetConfigResponse)
+@router.get("/my-settings", response_model=None)
 def get_my_widget_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
@@ -52,9 +53,9 @@ def get_my_widget_settings(current_user: User = Depends(get_current_user), db: S
         db.add(widget)
         db.commit()
         db.refresh(widget)
-    return widget
+    return success_response(data=WidgetConfigResponse.model_validate(widget))
 
-@router.put("/my-settings", response_model=WidgetConfigResponse)
+@router.put("/my-settings", response_model=None)
 def update_my_widget_settings(
     settings: WidgetUpdate, 
     current_user: User = Depends(get_current_user), 
@@ -102,16 +103,16 @@ def update_my_widget_settings(
     db.refresh(widget)
     db.commit()
     db.refresh(widget)
-    return widget
+    return success_response(data=WidgetConfigResponse.model_validate(widget))
 
-@router.get("/guests", response_model=List[GuestUserResponse])
+@router.get("/guests", response_model=None)
 def get_my_widget_guests(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
-        return []
+        return success_response(data=[])
     
     guests = db.query(GuestUser).filter(GuestUser.widget_id == widget.id).order_by(GuestUser.created_at.desc()).all()
-    return guests
+    return success_response(data=[GuestUserResponse.model_validate(g) for g in guests])
 
 @router.get("/interactions/{guest_id}", response_model=List[GuestMessageSchema])
 def get_guest_interactions(
@@ -185,6 +186,93 @@ def start_guest_session(public_widget_id: str, guest_in: GuestStartRequest, db: 
         status="ready"
     )
 
+# @router.post("/guest/session/init/{public_widget_id}", response_model=WidgetChatResponse)
+# async def init_guest_session(
+#     public_widget_id: str,
+#     session_in: SessionStartRequest,
+#     request: Request,
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Starts a new chat session for a guest and processes the first message.
+#     """
+#     widget = db.query(WidgetSettings).filter(WidgetSettings.public_widget_id == public_widget_id).first()
+#     if not widget:
+#         raise HTTPException(status_code=404, detail="Widget not found")
+        
+#     guest = db.query(GuestUser).filter(GuestUser.id == session_in.guest_id).first()
+#     if not guest:
+#         # Auto-create guest if ID provided but not found? Or fail?
+#         # Usually widget creates guest first. But let's be robust.
+#         # Ideally, return 404, but for resilience we could create.
+#         # Let's assume Valid Guest ID.
+#         raise HTTPException(status_code=404, detail="Guest not found")
+        
+#     # Create new session
+#     session = ChatSession(
+#         guest_id=guest.id,
+#         origin=session_in.origin
+#     )
+    
+#     # 1. Populate context from Frontend (Device, Referrer, Timezone, simple UTMs)
+#     if session_in.context:
+#         ctx = session_in.context
+#         session.device_type = ctx.device_type
+#         session.browser = ctx.browser
+#         session.os = ctx.os
+#         session.timezone = ctx.timezone
+#         session.referrer = ctx.referrer
+#         session.utm_source = ctx.utm_source
+#         session.utm_medium = ctx.utm_medium
+#         session.utm_campaign = ctx.utm_campaign
+        
+#         # If frontend sent country/city (unlikely yet), use it.
+#         session.country = ctx.country
+#         session.city = ctx.city
+
+#     # 2. IP Geolocation Fallback
+#     # If country is missing, try to resolve via IP
+#     if not session.country:
+#         try:
+#             client_ip = request.client.host
+#             # In dev, localhost IP is 127.0.0.1 which resolves to nothing useful.
+#             # Only try if not localhost and safe.
+#             if client_ip and client_ip not in ["127.0.0.1", "::1"]:
+#                 # Using a free, no-key API for demonstration: ip-api.com
+#                 # Limit: 45 requests per minute. Fine for prototype/demo.
+#                 # Production should use MaxMind GeoIP2 local DB or paid API.
+#                 async with httpx.AsyncClient() as client:
+#                     resp = await client.get(f"http://ip-api.com/json/{client_ip}", timeout=2.0)
+#                     if resp.status_code == 200:
+#                         geo = resp.json()
+#                         if geo.get("status") == "success":
+#                             session.country = geo.get("country")
+#                             session.city = geo.get("city")
+#                             # If timezone was missing, this is also a good source
+#                             if not session.timezone:
+#                                 session.timezone = geo.get("timezone")
+#         except Exception as e:
+#             # log error but don't block session creation
+#             print(f"GeoIP Lookup Failed: {e}")
+
+#     db.add(session)
+    
+#     # Update Guest Stats
+#     guest.last_seen_at = datetime.now(timezone.utc)
+#     if guest.total_sessions is None:
+#         guest.total_sessions = 0
+#     guest.total_sessions += 1
+    
+#     if guest.total_sessions > 1:
+#         guest.is_returning = True
+        
+#     db.commit()
+#     db.refresh(session)
+    
+#     # Process message
+#     return await process_chat_message(db, widget, guest, session.id, session_in.message)
+
+
 @router.post("/guest/session/init/{public_widget_id}", response_model=WidgetChatResponse)
 async def init_guest_session(
     public_widget_id: str,
@@ -201,10 +289,6 @@ async def init_guest_session(
         
     guest = db.query(GuestUser).filter(GuestUser.id == session_in.guest_id).first()
     if not guest:
-        # Auto-create guest if ID provided but not found? Or fail?
-        # Usually widget creates guest first. But let's be robust.
-        # Ideally, return 404, but for resilience we could create.
-        # Let's assume Valid Guest ID.
         raise HTTPException(status_code=404, detail="Guest not found")
         
     # Create new session
@@ -213,7 +297,7 @@ async def init_guest_session(
         origin=session_in.origin
     )
     
-    # 1. Populate context from Frontend (Device, Referrer, Timezone, simple UTMs)
+    # 1. Populate context from Frontend
     if session_in.context:
         ctx = session_in.context
         session.device_type = ctx.device_type
@@ -224,36 +308,56 @@ async def init_guest_session(
         session.utm_source = ctx.utm_source
         session.utm_medium = ctx.utm_medium
         session.utm_campaign = ctx.utm_campaign
-        
-        # If frontend sent country/city (unlikely yet), use it.
         session.country = ctx.country
         session.city = ctx.city
-
+    
     # 2. IP Geolocation Fallback
-    # If country is missing, try to resolve via IP
     if not session.country:
         try:
-            client_ip = request.client.host
-            # In dev, localhost IP is 127.0.0.1 which resolves to nothing useful.
-            # Only try if not localhost and safe.
-            if client_ip and client_ip not in ["127.0.0.1", "::1"]:
-                # Using a free, no-key API for demonstration: ip-api.com
-                # Limit: 45 requests per minute. Fine for prototype/demo.
-                # Production should use MaxMind GeoIP2 local DB or paid API.
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(f"http://ip-api.com/json/{client_ip}", timeout=2.0)
+            # Get client IP - handle proxies/load balancers
+            client_ip = request.client.host if request.client else None
+            
+            # Check for forwarded IP (if behind proxy/load balancer)
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                client_ip = forwarded.split(",")[0].strip()
+            
+            print(f"Attempting geolocation for IP: {client_ip}")
+            
+            # Skip localhost IPs
+            if client_ip and client_ip not in ["127.0.0.1", "::1", "localhost"]:
+                client_ip = "8.8.8.8"
+                # Use httpx_client to avoid variable name collision
+                async with httpx.AsyncClient() as httpx_client:
+                    resp = await httpx_client.get(
+                        f"http://ip-api.com/json/{client_ip}",
+                        timeout=2.0
+                    )
+                    
                     if resp.status_code == 200:
                         geo = resp.json()
+                        print(f"Geo API response: {geo}")
+                        
                         if geo.get("status") == "success":
                             session.country = geo.get("country")
                             session.city = geo.get("city")
-                            # If timezone was missing, this is also a good source
+                            
                             if not session.timezone:
                                 session.timezone = geo.get("timezone")
+                            
+                            print(f"Geolocation successful: {session.country}, {session.city}")
+                        else:
+                            print(f"Geo API returned failure: {geo.get('message')}")
+            else:
+                print(f"Skipping geolocation for localhost IP: {client_ip}")
+                
+        except httpx.TimeoutException:
+            print(f"GeoIP Lookup Timeout")
+        except httpx.HTTPError as e:
+            print(f"GeoIP HTTP Error: {e}")
         except Exception as e:
-            # log error but don't block session creation
-            print(f"GeoIP Lookup Failed: {e}")
-
+            print(f"GeoIP Lookup Failed: {type(e).__name__}: {e}")
+    
     db.add(session)
     
     # Update Guest Stats
@@ -270,7 +374,6 @@ async def init_guest_session(
     
     # Process message
     return await process_chat_message(db, widget, guest, session.id, session_in.message)
-
 
 @router.post("/chat/{public_widget_id}/session/{session_id}", response_model=WidgetChatResponse)
 async def chat_in_session(
@@ -391,19 +494,63 @@ async def process_chat_message(db: Session, widget: WidgetSettings, guest: Guest
         response=GuestMessageSchema.model_validate(ai_msg)
     )
 
-@router.get("/sessions/{guest_id}/history", response_model=List[SessionHistoryResponse])
+@router.get("/sessions/{guest_id}/history", response_model=None)
 def get_guest_session_history(guest_id: str, db: Session = Depends(get_db)):
     sessions = db.query(ChatSession).filter(ChatSession.guest_id == guest_id).order_by(ChatSession.created_at.desc()).all()
-    return sessions
+    return success_response(data=[SessionHistoryResponse.model_validate(s) for s in sessions])
 
 @router.get("/session/{session_id}/messages", response_model=List[GuestMessageSchema])
 def get_session_messages(session_id: str, db: Session = Depends(get_db)):
     messages = db.query(GuestMessage).filter(GuestMessage.session_id == session_id).order_by(GuestMessage.created_at).all()
     return messages
 
+@router.get("/session/{session_id}")
+def get_session_details_widget(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
+    if not widget:
+        raise HTTPException(status_code=404, detail="Widget not found")
+
+    session = db.query(ChatSession).join(GuestUser).filter(
+        ChatSession.id == session_id,
+        GuestUser.widget_id == widget.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    guest = db.query(GuestUser).filter(GuestUser.id == session.guest_id).first()
+    messages = db.query(GuestMessage).filter(GuestMessage.session_id == session_id).order_by(GuestMessage.created_at).all()
+    
+    return success_response(data={
+        "id": session.id,
+        "guest": {
+            "id": guest.id,
+            "name": guest.name,
+            "email": guest.email,
+            "location": f"{session.city}, {session.country}" if session.city else session.country
+        },
+        "created_at": session.created_at,
+        "top_intent": session.top_intent,
+        "summary": session.summary,
+        "sentiment_score": session.sentiment_score,
+        "messages": [
+            {
+                "id": m.id,
+                "role": "user" if m.sender == "guest" else "ai",
+                "content": m.message_text,
+                "created_at": m.created_at
+            }
+            for m in messages
+        ]
+    })
+
 from app.services.analysis_agent import analyze_session, persist_analysis
 
-@router.post("/session/{session_id}/analyze", response_model=SessionHistoryResponse)
+@router.post("/session/{session_id}/analyze", response_model=None)
 async def analyze_chat_session(session_id: str, db: Session = Depends(get_db)):
     # 1. Verify session exists
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
@@ -433,7 +580,7 @@ async def analyze_chat_session(session_id: str, db: Session = Depends(get_db)):
     if not updated_session:
         raise HTTPException(status_code=500, detail="Failed to persist analysis")
         
-    return updated_session
+    return success_response(data=SessionHistoryResponse.model_validate(updated_session))
 
 # Deprecated or Legacy Support
 @router.post("/chat/{public_widget_id}/{guest_id}", response_model=WidgetChatResponse)

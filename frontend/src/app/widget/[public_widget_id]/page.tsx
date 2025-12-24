@@ -298,8 +298,10 @@ export default function WidgetPage() {
     try {
       const res = await fetch(`${BACKEND_URL}/widgets/sessions/${guestId}/history`);
       if (res.ok) {
-        const data = await res.json();
-        setHistory(data);
+        const response = await res.json();
+        // Handle standardized response wrapper (data.data) or raw array
+        const historyData = response.data || response;
+        setHistory(Array.isArray(historyData) ? historyData : []);
         setViewingHistory(true);
         setShowMenu(false);
       }

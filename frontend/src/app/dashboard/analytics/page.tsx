@@ -1,267 +1,203 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import {
-  getAnalyticsOverview,
-  getTopIntents,
-  getTopLocations,
-  getTrafficSources,
-  AnalyticsOverview,
-  AnalyticsIntent,
-  AnalyticsLocation,
-  AnalyticsSource
-} from '@/lib/analytics';
-import {
-  MessageCircle,
-  Users,
-  Target,
-  Repeat,
-  Smartphone,
-  Globe,
-  ArrowUpRight
-} from 'lucide-react';
+import Tabs from '@/components/ui/Tabs';
+import { Activity, Users, Globe, Target } from 'lucide-react';
 import Card from '@/components/ui/Card';
+import { getTopIntents, getTopLocations, getTrafficSources, getAnalyticsOverview } from '@/lib/api';
+import { IntentStat, TrafficSource, AnalyticsOverview, LocationStat } from '@/lib/types';
 
-export default function AnalyticsPage() {
-  const [days, setDays] = useState(30);
-  const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
-  const [intents, setIntents] = useState<AnalyticsIntent[]>([]);
-  const [locations, setLocations] = useState<AnalyticsLocation[]>([]);
-  const [sources, setSources] = useState<AnalyticsSource[]>([]);
+// TrendChart Component
+const TrendChart = ({ days, setDays }: { days: number, setDays: (d: number) => void }) => {
+  const [chartData, setChartData] = React.useState<{ date: string; label: string; count: number }[]>([]);
+  const [max, setMax] = React.useState(0);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    async function load() {
       try {
-        const [overviewData, intentsData, locationsData, sourcesData] = await Promise.all([
-          getAnalyticsOverview(days),
-          getTopIntents(days),
-          getTopLocations(days),
-          getTrafficSources(days)
-        ]);
-        setOverview(overviewData);
-        setIntents(intentsData);
-        setLocations(locationsData);
-        setSources(sourcesData);
-      } catch (error) {
-        console.error("Failed to fetch analytics:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        const apiData = await import('@/lib/api').then(m => m.getTrafficTrend(days));
 
-    fetchData();
+        // Fill in missing days
+        const filledData = [];
+        const today = new Date();
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          const found = apiData.find(item => item.date === dateStr);
+          filledData.push({
+            date: dateStr,
+            label: `${d.getDate()}/${d.getMonth() + 1}`, // D/M format
+            count: found ? found.count : 0
+          });
+        }
+
+        setChartData(filledData);
+        setMax(Math.max(...filledData.map(d => d.count), 1));
+      } catch (e) { console.error(e); }
+    }
+    load();
   }, [days]);
 
-  const StatCard = ({ title, value, subtext, icon: Icon, trend }: any) => (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-[var(--bg-primary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-          <Icon className="w-5 h-5 text-[var(--text-primary)]" />
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div className="text-xs text-[var(--text-tertiary)]">Sessions per day</div>
+        <div className="flex gap-2">
+          {[7, 14, 30].map(d => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`text-xs px-2 py-1 rounded transition-colors ${days === d ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+            >
+              {d}d
+            </button>
+          ))}
         </div>
-        {trend && (
-          <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">
-            {trend}
-          </span>
-        )}
       </div>
-      <div>
-        <p className="text-[var(--text-secondary)] text-small mb-1">{title}</p>
-        <h3 className="text-h3 text-[var(--text-primary)] font-semibold">{value}</h3>
+      <div className="h-48 flex items-end gap-1 pt-4 border-b border-[var(--border-subtle)] pb-1">
+        {chartData.map((item) => (
+          <div key={item.date} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
+            <div
+              className="w-full bg-[var(--brand-primary)]/80 rounded-t-sm hover:bg-[var(--brand-primary)] transition-all min-w-[4px] relative"
+              style={{ height: `${(item.count / max) * 100}%` }}
+            >
+              {/* Zero state helper: if count is 0, show a tiny pixel line so it's not invisible? OR just empty. Let's leave empty but hoverable if needed? No, height 0 is invisible. */}
+              {item.count > 0 && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-[10px] py-1 px-2 rounded whitespace-nowrap z-10">
+                  {item.date}: {item.count} sessions
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* X-Axis Labels (Show sparse labels) */}
+      <div className="flex justify-between text-[10px] text-[var(--text-tertiary)] px-1">
+        {chartData.filter((_, i) => i % Math.ceil(days / 5) === 0).map(item => (
+          <span key={item.date}>{item.label}</span>
+        ))}
       </div>
     </div>
   );
+};
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-8">
-          <div className="h-10 bg-[var(--bg-secondary)] w-1/3 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[var(--bg-secondary)] rounded-lg"></div>)}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[1, 2].map(i => <div key={i} className="h-64 bg-[var(--bg-secondary)] rounded-lg"></div>)}
-          </div>
-        </div>
-      </div>
-    );
-  }
+export default function AnalyticsPage() {
+  const [intents, setIntents] = useState<IntentStat[]>([]);
+  const [locations, setLocations] = useState<LocationStat[]>([]);
+  const [sources, setSources] = useState<TrafficSource[]>([]);
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [trendDays, setTrendDays] = useState(14); // State for trend filter
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [i, l, s, o] = await Promise.all([
+          getTopIntents(),
+          getTopLocations(),
+          getTrafficSources(),
+          getAnalyticsOverview()
+        ]);
+        setIntents(i);
+        setLocations(l);
+        setSources(s);
+        setOverview(o as AnalyticsOverview);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="p-8">Loading analytics...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-h2 text-[var(--text-primary)]">Analytics</h1>
-          <p className="text-[var(--text-secondary)] mt-1">
-            Understand how visitors use your chat and where leads come from.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-[var(--radius-md)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 3 months</option>
-          </select>
-        </div>
+    <div className="space-y-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-space font-bold text-[var(--brand-primary)]">Analytics</h1>
+        <p className="text-[var(--text-secondary)]">Deep insights into your customer interactions.</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Chats"
-          value={overview?.total_sessions || 0}
-          icon={MessageCircle}
-        />
-        <StatCard
-          title="Leads Captured"
-          value={overview?.leads_captured || 0}
-          icon={Target}
-        />
-        <StatCard
-          title="Returning %"
-          value={`${overview?.returning_guests_percentage || 0}%`}
-          icon={Repeat}
-        />
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Top Chat Reasons (Intents) */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h3 className="text-h3 text-[var(--text-primary)] mb-6 flex items-center gap-2">
-            <Target className="w-5 h-5 text-[var(--text-secondary)]" /> Top Reasons People Chat
-          </h3>
-          <div className="space-y-4">
-            {intents.length === 0 ? (
-              <p className="text-[var(--text-secondary)]">No data yet.</p>
-            ) : (
-              intents.map((item, idx) => {
-                const max = Math.max(...intents.map(i => i.count));
-                const width = (item.count / max) * 100;
-                return (
-                  <div key={idx}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-[var(--text-primary)] font-medium capitalize">{item.intent || 'General'}</span>
-                      <span className="text-[var(--text-secondary)]">{item.count}</span>
-                    </div>
-                    <div className="h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[var(--primary)] rounded-full transition-all duration-500"
-                        style={{ width: `${width}%` }}
-                      />
+      <Tabs
+        tabs={[
+          {
+            id: 'engagement',
+            label: 'Engagement',
+            content: (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card title="Traffic Trend" subtitle="Daily sessions volume">
+                  <TrendChart days={trendDays} setDays={setTrendDays} />
+                </Card>
+                <Card title="Avg Session Duration" subtitle="Distribution of chat lengths">
+                  <div className="h-64 flex items-center justify-center text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/30 rounded-lg border border-dashed border-[var(--border-subtle)]">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-[var(--brand-primary)]">{overview ? Math.floor(overview.avg_session_duration / 60) : 0}m {overview ? overview.avg_session_duration % 60 : 0}s</div>
+                      <p className="mt-2 text-sm">Average across {overview?.total_sessions} sessions</p>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Locations */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h3 className="text-h3 text-[var(--text-primary)] mb-6 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-[var(--text-secondary)]" /> Where Visitors Are From
-          </h3>
-          <div className="space-y-3">
-            {locations.length === 0 ? (
-              <p className="text-[var(--text-secondary)]">No location data available.</p>
-            ) : (
-              locations.map((loc, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-primary)]/50 px-2 -mx-2 rounded transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">📍</span> {/* Could use country flag lib later */}
-                    <div>
-                      <div className="text-[var(--text-primary)] font-medium">{loc.city}</div>
-                      <div className="text-[var(--text-secondary)] text-xs">{loc.country}</div>
-                    </div>
+                </Card>
+              </div>
+            )
+          },
+          {
+            id: 'intent',
+            label: 'Intent Intelligence',
+            content: (
+              <div className="space-y-6">
+                <Card title="Top Intents" subtitle="Most frequent conversation topics">
+                  <div className="space-y-4">
+                    {intents.map(i => (
+                      <div key={i.intent} className="flex justify-between items-center p-3 bg-[var(--bg-secondary)] rounded-md">
+                        <span className="font-medium">{i.intent}</span>
+                        <span className="font-mono bg-white px-2 py-1 rounded text-xs border border-[var(--border-subtle)]">{i.count}</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="font-semibold text-[var(--text-primary)] bg-[var(--bg-primary)] px-2 py-1 rounded text-xs">
-                    {loc.count}
-                  </span>
+                </Card>
+              </div>
+            )
+          },
+          {
+            id: 'geo',
+            label: 'Geography',
+            content: (
+              <Card title="Global Reach" subtitle="Sessions by country">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {locations.map((loc: LocationStat) => (
+                    <div key={loc.country} className="p-4 bg-[var(--bg-secondary)] rounded-lg text-center">
+                      <div className="text-lg font-bold">{loc.country}</div>
+                      <div className="text-sm text-[var(--text-secondary)]">{loc.city || 'Unknown City'}</div>
+                      <div className="mt-2 font-mono text-xl">{loc.count}</div>
+                    </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Traffic Sources & Devices */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Traffic Sources */}
-        <div className="lg:col-span-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h3 className="text-h3 text-[var(--text-primary)] mb-6 flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5 text-[var(--text-secondary)]" /> How People Found You
-          </h3>
-          <div className="space-y-4">
-            {sources.length === 0 ? (
-              <p className="text-[var(--text-secondary)]">No referrer data captured.</p>
-            ) : (
-              sources.map((src, idx) => {
-                const max = Math.max(...sources.map(s => s.count));
-                const width = (src.count / max) * 100;
-                // Simple logic to clean URL
-                let label = src.source;
-                if (!label) label = "Direct / Unknown";
-                else if (label.includes('google')) label = "Google Search";
-                else if (label.includes('instagram')) label = "Instagram";
-
-                return (
-                  <div key={idx} className="group">
-                    <div className="flex justify-between text-sm mb-1 px-1">
-                      <span className="text-[var(--text-primary)]">{label}</span>
-                      <span className="text-[var(--text-secondary)]">{src.count}</span>
-                    </div>
-                    <div className="h-4 bg-[var(--bg-primary)] rounded-sm overflow-hidden flex">
-                      <div
-                        className="h-full bg-blue-500/80 group-hover:bg-blue-500 transition-colors"
-                        style={{ width: `${width}%` }}
-                      />
-                    </div>
+              </Card>
+            )
+          },
+          {
+            id: 'acquisition',
+            label: 'Acquisition',
+            content: (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="col-span-3">
+                  <h3 className="font-space font-bold mb-4">Traffic Sources</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {sources.map(s => (
+                      <div key={s.source} className="p-4 border border-[var(--border-subtle)] rounded-lg">
+                        <div className="text-sm text-[var(--text-secondary)] uppercase break-all">{s.source || 'Direct'}</div>
+                        <div className="text-2xl font-bold mt-1">{s.count}</div>
+                      </div>
+                    ))}
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Devices (Placeholder since API doesn't aggregate it yet, but we requested it) */}
-        {/* Note: In Implementation Plan I didn't explicitly add getDevices but backend has collected it. */}
-        {/* For now, simplified placeholder or just omit until API is ready. */}
-        {/* I'll omit it to keep it working or use dummy for layout? */}
-        {/* The user wants "Exact Layout". I should implement it. */}
-        {/* I can add GET /analytics/devices logic later or just mock it. */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h3 className="text-h3 text-[var(--text-primary)] mb-6 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-[var(--text-secondary)]" /> Devices
-          </h3>
-          <div className="flex flex-col gap-4 justify-center h-48 items-center text-center">
-            <Smartphone className="w-12 h-12 text-[var(--text-secondary)]/50" />
-            <p className="text-[var(--text-secondary)] text-sm">
-              Device breakdown coming soon.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer / Empty State Note */}
-      {overview?.total_sessions === 0 && (
-        <div className="text-center py-12 border border-dashed border-[var(--border-subtle)] rounded-[var(--radius-lg)] bg-[var(--bg-primary)]/50">
-          <h3 className="text-lg font-medium text-[var(--text-primary)]">No analytics yet</h3>
-          <p className="text-[var(--text-secondary)] max-w-sm mx-auto mt-2">
-            Once visitors start chatting with your website, insights will appear here. Share your website link to get started.
-          </p>
-        </div>
-      )}
-
+                </Card>
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }

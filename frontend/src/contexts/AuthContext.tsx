@@ -65,7 +65,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       router.push('/dashboard');
     } catch (error) {
-      console.error('Login failed:', error);
       throw error;
     }
   };
@@ -81,7 +80,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       router.push('/dashboard');
     } catch (error) {
-      console.error('Signup failed:', error);
       throw error;
     }
   };

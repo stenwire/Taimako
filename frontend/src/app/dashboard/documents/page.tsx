@@ -58,6 +58,10 @@ export default function DocumentsPage() {
     }
   };
 
+  const removeFile = (indexToRemove: number) => {
+    setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -215,6 +219,12 @@ export default function DocumentsPage() {
                         ({(file.size / 1024).toFixed(1)} KB)
                       </span>
                     </div>
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors p-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
                 <Button
@@ -278,8 +288,8 @@ export default function DocumentsPage() {
                         <span className="text-small text-[var(--text-primary)] truncate">{doc.filename}</span>
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-sm flex-shrink-0 ${doc.status === 'processed' ? 'bg-green-100 text-green-700' :
-                              doc.status === 'error' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
+                            doc.status === 'error' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
                             }`}>{doc.status}</span>
                           {doc.error_message && <span className="text-[10px] text-red-500 truncate" title={doc.error_message}>{doc.error_message}</span>}
                         </div>
@@ -289,7 +299,7 @@ export default function DocumentsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => confirmDelete(doc.id)}
-                      className="text-[var(--error)] hover:bg-[var(--error-bg)] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all"
+                      className="text-[var(--text-tertiary)] hover:text-red-600 hover:bg-red-50 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

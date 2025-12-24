@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Enum, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Enum, Integer, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.db.base import Base
@@ -24,6 +24,7 @@ class ChatSession(Base):
     summary = Column(Text, nullable=True)
     summary_generated_at = Column(DateTime, nullable=True)
     top_intent = Column(String, nullable=True)
+    sentiment_score = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
 
     # Analytics - Context

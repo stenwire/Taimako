@@ -9,7 +9,15 @@ import type {
   ChatResponse,
   ProcessedDocument,
   Document,
-  ApiResponse
+  ApiResponse,
+  AnalyticsOverview,
+  IntentStat,
+  LocationStat,
+  TrafficSource,
+  Session,
+  SessionDetail,
+  Guest,
+  GuestSession
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -70,7 +78,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const originalRequest = error.config as any; // Using any to access potential internal state, safe in this context
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -89,7 +98,7 @@ api.interceptors.response.use(
           if (typeof window !== 'undefined') {
             window.location.href = '/auth/login';
           }
-        } catch (refreshError) {
+        } catch {
           clearTokens();
           if (typeof window !== 'undefined') {
             window.location.href = '/auth/login';
@@ -195,6 +204,65 @@ export const chatWithAgent = async (message: string): Promise<ChatResponse> => {
   const response = await api.post('/chat', { message });
   return response.data.data || response.data;
 };
+
+// Analytics & Sessions
+export const getAnalyticsOverview = async (days: number = 30): Promise<ApiResponse<AnalyticsOverview> | AnalyticsOverview> => {
+  // Note: The backend returns raw dict for overview, not wrapped in ApiResponse envelope currently in code, let's verify.
+  // Looking at analytics.py: return {...} directly. So it's raw JSON.
+  const response = await api.get(`/analytics/overview?days=${days}`);
+  return response.data.data;
+};
+
+export const getTopIntents = async (days: number = 30): Promise<IntentStat[]> => {
+  const response = await api.get(`/analytics/intents?days=${days}`);
+  return response.data.data;
+};
+
+export const getTopLocations = async (days: number = 30): Promise<LocationStat[]> => {
+  const response = await api.get(`/analytics/locations?days=${days}`);
+  return response.data.data; // array of objects
+};
+
+export const getTrafficSources = async (days: number = 30): Promise<TrafficSource[]> => {
+  const response = await api.get(`/analytics/sources?days=${days}`);
+  return response.data.data;
+};
+
+export const getTrafficTrend = async (days: number = 30): Promise<{ date: string; count: number }[]> => {
+  const response = await api.get(`/analytics/trend?days=${days}`);
+  return response.data.data;
+};
+
+export const getSessions = async (limit: number = 20, offset: number = 0): Promise<Session[]> => {
+  const response = await api.get(`/analytics/sessions?limit=${limit}&offset=${offset}`);
+  // Handle standardized response
+  const data = response.data.data || response.data;
+  return Array.isArray(data) ? data : [];
+};
+
+export const getSession = async (sessionId: string): Promise<SessionDetail> => {
+  const response = await api.get(`/widgets/session/${sessionId}`);
+  return response.data.data;
+};
+
+// Widget/Guest endpoints for 3-pane view
+export const getGuests = async (): Promise<Guest[]> => {
+  const response = await api.get('/widgets/guests');
+  // Handle both wrapped and unwrapped for robustness during migration
+  const data = response.data.data || response.data;
+  return Array.isArray(data) ? data : [];
+};
+
+export const getGuestSessions = async (guestId: string): Promise<GuestSession[]> => {
+  const response = await api.get(`/widgets/sessions/${guestId}/history`);
+  return response.data.data;
+};
+
+export const analyzeSession = async (sessionId: string): Promise<GuestSession> => {
+  const response = await api.post(`/widgets/session/${sessionId}/analyze`);
+  return response.data.data || response.data;
+};
+
 
 export default api;
 

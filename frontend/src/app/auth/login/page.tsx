@@ -46,8 +46,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(formData);
-    } catch (error: any) {
-      setApiError(error.response?.data?.message || 'Invalid email or password');
+    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = error as any; // simplified for now to keep logic
+      setApiError(err.response?.data?.message || err.response?.data?.detail || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -67,7 +69,7 @@ export default function LoginPage() {
             <div className="p-3 bg-[var(--brand-primary)] rounded-[var(--radius-squircle)]">
               <BrainCircuit className="w-8 h-8 text-white" />
             </div>
-            <span className="text-h1 text-[var(--text-primary)]">Agentic CX</span>
+            <span className="text-h1 text-[var(--text-primary)]">Taimako</span>
           </div>
           <h1 className="text-h2 text-[var(--text-primary)] mb-2">Welcome back</h1>
           <p className="text-small text-[var(--text-secondary)]">
@@ -125,7 +127,7 @@ export default function LoginPage() {
 
             <div className="mt-6 text-center">
               <p className="text-small text-[var(--text-secondary)]">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link
                   href="/auth/signup"
                   className="text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] font-medium transition-colors"

@@ -53,8 +53,10 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await signup(formData);
-    } catch (error: any) {
-      setApiError(error.response?.data?.message || 'Signup failed. Please try again.');
+    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = error as any;
+      setApiError(err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,7 @@ export default function SignupPage() {
             <div className="p-3 bg-[var(--brand-primary)] rounded-[var(--radius-squircle)]">
               <BrainCircuit className="w-8 h-8 text-white" />
             </div>
-            <span className="text-h1 text-[var(--text-primary)]">Agentic CX</span>
+            <span className="text-h1 text-[var(--text-primary)]">Taimako</span>
           </div>
           <h1 className="text-h2 text-[var(--text-primary)] mb-2">Create your account</h1>
           <p className="text-small text-[var(--text-secondary)]">

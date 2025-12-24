@@ -28,13 +28,13 @@ def get_analytics_overview(
     # Get user's widget (assuming 1 widget per user for now)
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
-        return {
+        return success_response(data={
             "total_sessions": 0,
             "total_guests": 0,
             "leads_captured": 0,
             "avg_session_duration": 0,
             "returning_guests_percentage": 0
-        }
+        })
 
     # Filter sessions by widget -> guest -> session
     # Doing a join: ChatSession -> GuestUser -> WidgetSettings
@@ -82,13 +82,13 @@ def get_analytics_overview(
     if total_guests > 0:
         returning_percentage = int((returning_guests_count / total_guests) * 100)
 
-    return {
+    return success_response(data={
         "total_sessions": total_sessions,
         "total_guests": total_guests,
         "leads_captured": leads_captured,
         "avg_session_duration": int(avg_duration),
         "returning_guests_percentage": returning_percentage
-    }
+    })
 
 @router.get("/intents")
 def get_top_intents(
@@ -99,7 +99,7 @@ def get_top_intents(
     start_date = datetime.utcnow() - timedelta(days=days)
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
-        return []
+        return success_response(data=[])
 
     # Group by top_intent, no limit as requested
     results = db.query(
@@ -110,7 +110,7 @@ def get_top_intents(
         ChatSession.top_intent.isnot(None)
     ).group_by(ChatSession.top_intent).order_by(func.count(ChatSession.id).desc()).all()
     
-    return [{"intent": r[0], "count": r[1]} for r in results]
+    return success_response(data=[{"intent": r[0], "count": r[1]} for r in results])
 
 @router.get("/locations")
 def get_top_locations(
@@ -121,7 +121,7 @@ def get_top_locations(
     start_date = datetime.utcnow() - timedelta(days=days)
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
-        return []
+        return success_response(data=[])
 
     # Group by City, Country
     # Prefer City if available, else Country?
@@ -134,7 +134,7 @@ def get_top_locations(
         ChatSession.country.isnot(None)
     ).group_by(ChatSession.country, ChatSession.city).order_by(func.count(ChatSession.id).desc()).limit(10).all()
     
-    return [{"country": r[0], "city": r[1] or "Unknown", "count": r[2]} for r in results]
+    return success_response(data=[{"country": r[0], "city": r[1] or "Unknown", "count": r[2]} for r in results])
 
 @router.get("/sources")
 def get_traffic_sources(
@@ -145,7 +145,7 @@ def get_traffic_sources(
     start_date = datetime.utcnow() - timedelta(days=days)
     widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
     if not widget:
-        return []
+        return success_response(data=[])
 
     # Count distinct guests per referrer (User asked for per-user basis)
     results = db.query(
@@ -156,7 +156,31 @@ def get_traffic_sources(
         ChatSession.referrer.isnot(None)
     ).group_by(ChatSession.referrer).order_by(func.count(func.distinct(ChatSession.guest_id)).desc()).all()
     
-    return [{"source": r[0], "count": r[1]} for r in results]
+    return success_response(data=[{"source": r[0], "count": r[1]} for r in results])
+
+@router.get("/trend")
+def get_traffic_trend(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    start_date = datetime.utcnow() - timedelta(days=days)
+    widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
+    if not widget:
+        return success_response(data=[])
+
+    # Daily session counts
+    # Using func.date for SQLite compatibility (and Postgres sometimes)
+    # If using Postgres, might need cast to Date.
+    # Assuming standard SQLAlchemy usage.
+    results = db.query(
+        func.date(ChatSession.created_at).label('date'), func.count(ChatSession.id)
+    ).join(GuestUser).filter(
+        GuestUser.widget_id == widget.id,
+        ChatSession.created_at >= start_date
+    ).group_by(func.date(ChatSession.created_at)).order_by(func.date(ChatSession.created_at)).all()
+    
+    return success_response(data=[{"date": str(r[0]), "count": r[1]} for r in results])
 
 class FollowUpRequest(BaseModel):
     session_id: str
@@ -187,3 +211,80 @@ async def generate_followup(
     content = await generate_followup_content(messages, request.type, request.extra_info)
     
     return success_response(data={"content": content})
+
+@router.get("/sessions")
+def get_recent_sessions(
+    limit: int = 20,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
+    if not widget:
+        return success_response(data=[])
+
+    # Get recent sessions
+    sessions = db.query(ChatSession).join(GuestUser).filter(
+        GuestUser.widget_id == widget.id
+    ).order_by(ChatSession.created_at.desc()).offset(offset).limit(limit).all()
+
+    # Enhance with guest info
+    result = []
+    for s in sessions:
+        guest = db.query(GuestUser).filter(GuestUser.id == s.guest_id).first()
+        result.append({
+            "id": s.id,
+            "guest_name": guest.name if guest else "Anonymous",
+            "guest_email": guest.email,
+            "created_at": s.created_at,
+            "session_duration": s.session_duration,
+            "top_intent": s.top_intent,
+            "summary": s.summary,
+            "status": "closed" if s.summary else "active" # Simple logic
+        })
+    
+    return success_response(data=result)
+
+@router.get("/sessions/{session_id}")
+def get_session_details(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
+    if not widget:
+        raise HTTPException(status_code=404, detail="Widget not found")
+
+    session = db.query(ChatSession).join(GuestUser).filter(
+        ChatSession.id == session_id,
+        GuestUser.widget_id == widget.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    guest = db.query(GuestUser).filter(GuestUser.id == session.guest_id).first()
+    messages = db.query(GuestMessage).filter(GuestMessage.session_id == session_id).order_by(GuestMessage.created_at).all()
+    
+    return success_response(data={
+        "id": session.id,
+        "guest": {
+            "id": guest.id,
+            "name": guest.name,
+            "email": guest.email,
+            "location": f"{session.city}, {session.country}" if session.city else session.country
+        },
+        "created_at": session.created_at,
+        "top_intent": session.top_intent,
+        "summary": session.summary,
+        "sentiment_score": session.sentiment_score,
+        "messages": [
+            {
+                "id": m.id,
+                "role": "user" if m.sender == "guest" else "ai",
+                "content": m.message_text,
+                "created_at": m.created_at
+            }
+            for m in messages
+        ]
+    })

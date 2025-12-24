@@ -110,3 +110,81 @@ export interface UpdateWidgetSettings {
   whatsapp_enabled?: boolean;
   whatsapp_number?: string;
 }
+
+export interface AnalyticsOverview {
+  total_sessions: number;
+  total_guests: number;
+  leads_captured: number;
+  avg_session_duration: number;
+  returning_guests_percentage: number;
+}
+
+export interface IntentStat {
+  intent: string;
+  count: number;
+}
+
+export interface TrafficSource {
+  source: string;
+  count: number;
+}
+
+export interface Session {
+  id: string;
+  guest_name: string;
+  guest_email: string | null;
+  created_at: string;
+  session_duration: number;
+  top_intent: string | null;
+  summary: string | null;
+  status: 'active' | 'closed';
+}
+
+export interface SessionMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string; // The backend returns full content as string? Or just message_text
+  created_at: string;
+}
+
+export interface GuestDetails {
+  id: string;
+  name: string;
+  email: string | null;
+  location: string | null;
+}
+
+export interface SessionDetail {
+  id: string;
+  guest: GuestDetails;
+  created_at: string;
+  top_intent: string | null;
+  summary: string | null;
+  sentiment_score: number | null;
+  messages: SessionMessage[];
+}
+
+export interface LocationStat {
+  country: string;
+  city: string;
+  count: number;
+}
+
+export interface Guest {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+  // last_seen_at? backend has it but schema might only return created_at?
+  // GuestUserResponse in widget.py: id, name, email, phone, created_at.
+}
+
+export interface GuestSession {
+  id: string;
+  created_at: string;
+  last_message_at: string;
+  origin: string;
+  summary: string | null;
+  top_intent: string | null;
+}

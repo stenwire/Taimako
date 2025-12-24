@@ -36,7 +36,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 #     "http://localhost:8000",
 # ]
 
-origins = ["*"]
+origins = ["http://localhost:3000", "http://localhost:8000"]
 
 app.add_middleware(
     CORSMiddleware,

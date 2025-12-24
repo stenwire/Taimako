@@ -47,7 +47,7 @@ async def get_business(
     """Get the current user's business profile."""
     business = db.query(Business).filter(Business.user_id == current_user.id).first()
     if not business:
-        raise HTTPException(status_code=404, detail="Business profile not found. Please create one first.")
+        return success_response(data=None)
     
     return success_response(data=BusinessResponse.model_validate(business))
 
