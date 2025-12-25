@@ -188,6 +188,7 @@ export interface Guest {
   name: string;
   email: string | null;
   phone: string | null;
+  is_lead: boolean;
   created_at: string;
   // last_seen_at? backend has it but schema might only return created_at?
   // GuestUserResponse in widget.py: id, name, email, phone, created_at.

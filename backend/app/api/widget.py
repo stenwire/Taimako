@@ -156,6 +156,35 @@ def get_my_widget_guests(current_user: User = Depends(get_current_user), db: Ses
     guests = db.query(GuestUser).filter(GuestUser.widget_id == widget.id).order_by(GuestUser.created_at.desc()).all()
     return success_response(data=[GuestUserResponse.model_validate(g) for g in guests])
 
+class LeadStatusUpdate(BaseModel):
+    is_lead: bool
+
+@router.put("/guests/{guest_id}/lead", response_model=None)
+def toggle_lead_status(
+    guest_id: str,
+    lead_update: LeadStatusUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Toggle the lead status for a guest user."""
+    widget = db.query(WidgetSettings).filter(WidgetSettings.user_id == current_user.id).first()
+    if not widget:
+        raise HTTPException(status_code=404, detail="Widget not found")
+    
+    guest = db.query(GuestUser).filter(
+        GuestUser.id == guest_id,
+        GuestUser.widget_id == widget.id
+    ).first()
+    
+    if not guest:
+        raise HTTPException(status_code=404, detail="Guest not found")
+    
+    guest.is_lead = lead_update.is_lead
+    db.commit()
+    db.refresh(guest)
+    
+    return success_response(data=GuestUserResponse.model_validate(guest))
+
 @router.get("/interactions/{guest_id}", response_model=List[GuestMessageSchema])
 def get_guest_interactions(
     guest_id: str, 

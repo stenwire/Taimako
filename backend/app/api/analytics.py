@@ -55,12 +55,11 @@ def get_analytics_overview(
     # Better: Count distinct Guest IDs in sessions query
     total_guests = query.with_entities(ChatSession.guest_id).distinct().count()
 
-    # Leads (Phone or Email captured)
-    # We count Guests with email/phone who had a session in this period
+    # Leads (marked manually as leads)
     leads_captured = db.query(GuestUser).join(ChatSession).filter(
         GuestUser.widget_id == widget.id,
         ChatSession.created_at >= start_date,
-        (GuestUser.email.isnot(None) | GuestUser.phone.isnot(None))
+        GuestUser.is_lead == True
     ).distinct().count()
     
     # Avg Duration

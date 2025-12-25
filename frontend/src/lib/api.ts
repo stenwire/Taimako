@@ -271,6 +271,11 @@ export const analyzeSession = async (sessionId: string): Promise<GuestSession> =
   return response.data.data || response.data;
 };
 
+export const toggleLeadStatus = async (guestId: string, isLead: boolean): Promise<Guest> => {
+  const response = await api.put(`/widgets/guests/${guestId}/lead`, { is_lead: isLead });
+  return response.data.data;
+};
+
 
 export default api;
 
