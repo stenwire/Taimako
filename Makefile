@@ -1,4 +1,4 @@
-.PHONY: start stop build
+.PHONY: start stop build migrate migrate-generate
 
 start:
 	docker-compose up
@@ -8,3 +8,11 @@ stop:
 
 build:
 	docker-compose build
+
+# Database migrations
+migrate:
+	cd backend && alembic upgrade head
+
+migrate-generate:
+	@read -p "Enter migration message: " msg; \
+	cd backend && alembic revision --autogenerate -m "$$msg"

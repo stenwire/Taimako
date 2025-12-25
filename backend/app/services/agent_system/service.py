@@ -1,9 +1,11 @@
-from google.adk.sessions import InMemorySessionService
+from google.adk.sessions import DatabaseSessionService
+from app.db.session import SQLALCHEMY_DATABASE_URL
 
 # --- Session Management ---
-session_service = InMemorySessionService()
+# Using DatabaseSessionService for persistent session storage
+session_service = DatabaseSessionService(db_url=SQLALCHEMY_DATABASE_URL)
 
-async def init_session(app_name: str, user_id: str, session_id: str, initial_state: dict = None) -> InMemorySessionService:
+async def init_session(app_name: str, user_id: str, session_id: str, initial_state: dict = None):
     """
     Initialize a session with optional initial state.
     
