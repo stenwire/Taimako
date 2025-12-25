@@ -16,9 +16,11 @@ export interface BusinessProfile {
   custom_agent_instruction: string;
   intents?: string[];
   logo_url?: string;
+  is_api_key_set?: boolean;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface CreateBusinessProfileData {
   business_name: string;

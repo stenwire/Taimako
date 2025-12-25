@@ -215,14 +215,71 @@ export default function BusinessProfilePage() {
                   onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                   disabled={!editing}
                 />
-                <Input
-                  label="Google Gemini API Key"
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={formData.gemini_api_key || ''}
-                  onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
-                  disabled={!editing}
-                />
+
+                {/* API Key Input + Validation */}
+                <div className="flex flex-col gap-2 relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[var(--text-secondary)] text-[13px] font-medium">
+                      Google Gemini API Key
+                    </label>
+                    {profile?.is_api_key_set && !editing && (
+                      <span className="text-[12px] font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Key Set
+                      </span>
+                    )}
+                    {(!profile || !profile.is_api_key_set) && !editing && (
+                      <span className="text-[12px] font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Not Set
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Input
+                        label="" // No label since we added custom header above
+                        type="password"
+                        placeholder={profile?.is_api_key_set && !editing ? "••••••••••••••••" : "AIzaSy..."}
+                        value={formData.gemini_api_key || ''}
+                        onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
+                        disabled={!editing}
+                      />
+                    </div>
+
+                    {/* Test Button - Only active when key is present (either saved or in input) */}
+                    {editing && (
+                      <Button
+                        onClick={async () => {
+                          const key = formData.gemini_api_key;
+                          if (!key) {
+                            setError("Please enter a key to test");
+                            return;
+                          }
+                          try {
+                            const { validateApiKey } = await import('@/lib/api');
+                            await validateApiKey(key);
+                            setSuccess("API Key is valid!");
+                            setTimeout(() => setSuccess(''), 3000);
+                            setError('');
+                          } catch (e) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const err = e as any;
+                            setError(`Invalid Key: ${err.response?.data?.detail || err.message}`);
+                          }
+                        }}
+                        type="button"
+                        variant="secondary"
+                        className="h-[42px] mt-0.5" // Align with input
+                        disabled={!formData.gemini_api_key}
+                      >
+                        Test
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                    Required for the AI agent to function.
+                  </p>
+                </div>
               </div>
               <div>
                 <label className="block text-[var(--text-secondary)] text-[13px] font-medium mb-2">

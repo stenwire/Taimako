@@ -25,9 +25,14 @@ class BusinessUpdate(BaseModel):
 class BusinessResponse(BusinessBase):
     id: str
     user_id: str
-    # gemini_api_key is not in Base, so safe.
+    is_api_key_set: bool = False
+
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+class ValidateKeyRequest(BaseModel):
+    api_key: str
+

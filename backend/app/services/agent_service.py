@@ -28,8 +28,10 @@ warnings.filterwarnings("ignore")
 
 logging.basicConfig(level=logging.ERROR)
 
+
 print("Libraries imported.")
-print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
+# print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
+
 
 
 async def call_agent_async(query: str, runner: Runner, user_id: str, session_id: str):

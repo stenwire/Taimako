@@ -79,6 +79,9 @@ class AgentFactory:
         
         # Determine model to use
         model = MODEL_GEMINI_2_0_FLASH
+        if not api_key:
+             raise ValueError("API Key is required for this business configuration.")
+
         if api_key:
              # Use LiteLlm with specific API key if provided
              # Note: LiteLlm requires provider prefix 'gemini/' usually if using litellm directly, 

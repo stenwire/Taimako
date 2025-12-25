@@ -187,6 +187,10 @@ class FollowUpRequest(BaseModel):
     type: str # "email" or "transcript"
     extra_info: Optional[str] = ""
 
+from app.core.security_utils import decrypt_string
+
+# ...
+
 @router.post("/followup", response_model=None)
 async def generate_followup(
     request: FollowUpRequest,
@@ -208,7 +212,12 @@ async def generate_followup(
         
     messages = db.query(GuestMessage).filter(GuestMessage.session_id == request.session_id).order_by(GuestMessage.created_at).all()
     
-    content = await generate_followup_content(messages, request.type, request.extra_info)
+    # Get API key
+    api_key = None
+    if current_user.business and current_user.business.gemini_api_key:
+        api_key = decrypt_string(current_user.business.gemini_api_key)
+    
+    content = await generate_followup_content(messages, request.type, request.extra_info, api_key=api_key)
     
     return success_response(data={"content": content})
 

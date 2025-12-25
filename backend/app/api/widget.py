@@ -102,9 +102,9 @@ def update_my_widget_settings(
         widget.primary_color = settings.primary_color
     if settings.icon_url is not None:
         if settings.icon_url == "":
-             widget.icon_url = None
+            widget.icon_url = None
         else:
-             widget.icon_url = settings.icon_url
+            widget.icon_url = settings.icon_url
     if settings.welcome_message is not None:
         val = settings.welcome_message.strip()
         if val == "":
@@ -503,19 +503,50 @@ async def process_chat_message(db: Session, widget: WidgetSettings, guest: Guest
                  )
 
     # Decrypt API Key
+    # Decrypt API Key
     decrypted_key = None
     if owner_user and owner_user.business and owner_user.business.gemini_api_key:
         decrypted_key = decrypt_string(owner_user.business.gemini_api_key)
+    
+    if not decrypted_key:
+        print(f"Missing API Key for business {widget.user_id}")
+        return WidgetChatResponse(
+            message=GuestMessageSchema.model_validate(guest_msg),
+            response=GuestMessageSchema(
+                id=str(uuid.uuid4()),
+                guest_id=guest.id,
+                session_id=session_id,
+                sender="ai",
+                message_text="Service unavailable: The business has not configured the AI service correctly (Missing API Key).",
+                created_at=datetime.now(timezone.utc)
+            )
+        )
 
-    ai_response_text = await run_conversation(
-        message=message_text,
-        user_id=widget.user_id,
-        business_name=business_name,
-        custom_instruction=instruction,
-        session_id=session_id, # Use session_id for thread consistency
-        intents=intents,
-        api_key=decrypted_key
-    )
+
+    try:
+        ai_response_text = await run_conversation(
+            message=message_text,
+            user_id=widget.user_id,
+            business_name=business_name,
+            custom_instruction=instruction,
+            session_id=session_id, # Use session_id for thread consistency
+            intents=intents,
+            api_key=decrypted_key
+        )
+    except Exception as e:
+        print(f"Agent Execution Error: {e}")
+        return WidgetChatResponse(
+            message=GuestMessageSchema.model_validate(guest_msg),
+            response=GuestMessageSchema(
+                id=str(uuid.uuid4()),
+                guest_id=guest.id,
+                session_id=session_id,
+                sender="ai",
+                message_text="I'm having trouble connecting right now. Please try again later.",
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+
 
     # 4. Store AI response
     ai_msg = GuestMessage(
@@ -642,8 +673,9 @@ async def analyze_chat_session(session_id: str, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Fetch intents from business if available
+    # Fetch intents and API key from business if available
     intents = None
+    decrypted_key = None
     try:
         # ChatSession -> GuestUser -> WidgetSettings -> User -> Business
         guest = db.query(GuestUser).filter(GuestUser.id == session.guest_id).first()
@@ -651,13 +683,17 @@ async def analyze_chat_session(session_id: str, db: Session = Depends(get_db)):
             widget = db.query(WidgetSettings).filter(WidgetSettings.id == guest.widget_id).first()
             if widget:
                 owner_user = db.query(User).filter(User.id == widget.user_id).first()
-                if owner_user and owner_user.business and owner_user.business.intents:
-                    intents = owner_user.business.intents
+                if owner_user and owner_user.business:
+                    if owner_user.business.intents:
+                        intents = owner_user.business.intents
+                    if owner_user.business.gemini_api_key:
+                        decrypted_key = decrypt_string(owner_user.business.gemini_api_key)
     except Exception as e:
-        print(f"Error fetching intents: {e}")
+        print(f"Error fetching intents/key: {e}")
 
     # 2. Run analysis
-    summary, intent = await analyze_session(db, session_id, intents=intents)
+    summary, intent = await analyze_session(db, session_id, intents=intents, api_key=decrypted_key)
+
     
     # 3. Persist
     updated_session = await persist_analysis(db, session_id, summary, intent)

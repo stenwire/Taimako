@@ -7,7 +7,8 @@ from app.models.business import Business
 from app.schemas.business import BusinessCreate, BusinessUpdate, BusinessResponse
 from app.core.response_wrapper import success_response
 from app.services.analysis_agent import generate_business_intents
-from app.core.security_utils import encrypt_string
+from app.core.security_utils import encrypt_string, decrypt_string
+
 
 router = APIRouter()
 
@@ -37,9 +38,12 @@ async def create_business(
     db.commit()
     db.refresh(business)
     
+    response = BusinessResponse.model_validate(business)
+    response.is_api_key_set = bool(business.gemini_api_key)
+    
     return success_response(
         message="Business profile created successfully",
-        data=BusinessResponse.model_validate(business)
+        data=response
     )
 
 @router.get("/business", response_model=None)
@@ -52,7 +56,9 @@ async def get_business(
     if not business:
         return success_response(data=None)
     
-    return success_response(data=BusinessResponse.model_validate(business))
+    response = BusinessResponse.model_validate(business)
+    response.is_api_key_set = bool(business.gemini_api_key)
+    return success_response(data=response)
 
 @router.put("/business", response_model=None)
 async def update_business(
@@ -84,10 +90,53 @@ async def update_business(
     db.commit()
     db.refresh(business)
     
+    response = BusinessResponse.model_validate(business)
+    response.is_api_key_set = bool(business.gemini_api_key)
+
     return success_response(
         message="Business profile updated successfully",
-        data=BusinessResponse.model_validate(business)
+        data=response
     )
+
+@router.post("/business/validate-key", response_model=None)
+async def validate_api_key(
+    key_data: dict, # Using dict to avoid importing ValidateKeyRequest for now or just generic
+    current_user: User = Depends(get_current_user)
+):
+    """Validate a Google Gemini API Key."""
+    api_key = key_data.get("api_key")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required")
+        
+    try:
+        from google import genai
+        # Initialize client with the key
+        client = genai.Client(api_key=api_key)
+        # Attempt a simple lightweight call. Validating 'models.list' or similar is usually cheapest/fastest.
+        # Or just sending "Hello"?
+        # Checking list of models is a good connectivity test.
+        # However, listing models might not verify if the key has access to generate content?
+        # Let's try to list models.
+        # Note: genai v2 SDK usage might differ slightly. Assuming standard google-genai usage.
+        # If the environment is using `google.generativeai` (old sdk) or `google-genai` (new SDK).
+        # Based on imports in agent_service.py: `from google.genai import types` -> It's the new SDK.
+        
+        # New SDK supports `client.models.list()`?
+        # Or we can just try generating "test".
+        
+        response = client.models.generate_content(
+            model='gemini-2.0-flash', 
+            contents='Test'
+        )
+        # If no exception, we are good?
+        
+    except Exception as e:
+        print(f"Key Validation Failed: {e}")
+        # Return 200 with success=False to let frontend handle message? 
+        # Or 400? 400 is better for 'Invalid Request/Input'.
+        raise HTTPException(status_code=400, detail=f"Invalid API Key: {str(e)}")
+
+    return success_response(message="API Key is valid")
 
 @router.post("/business/generate-intents", response_model=None)
 async def generate_intents(
@@ -98,5 +147,9 @@ async def generate_intents(
     if not business or not business.description:
         raise HTTPException(status_code=400, detail="Business description is required to generate intents.")
         
-    intents = await generate_business_intents(business.description)
+    api_key = None
+    if business.gemini_api_key:
+        api_key = decrypt_string(business.gemini_api_key)
+        
+    intents = await generate_business_intents(business.description, api_key=api_key)
     return success_response(data={"intents": intents})
