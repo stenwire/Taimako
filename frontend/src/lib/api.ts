@@ -20,7 +20,9 @@ import type {
   GuestSession
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { BACKEND_URL } from '../config';
+
+const API_BASE_URL = BACKEND_URL;
 
 // Create axios instance
 const api = axios.create({

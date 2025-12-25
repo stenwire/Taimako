@@ -11,9 +11,9 @@ import { getAccessToken, getBusinessProfile, updateBusinessProfile, generateInte
 import { useToast } from '@/contexts/ToastContext';
 import { BusinessProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { BACKEND_URL, FRONTEND_URL } from '@/config';
 
-const BACKEND_URL = 'http://localhost:8000'; // Should use env var
-const FRONTEND_URL = 'http://localhost:3000'; // Should use env var
+
 
 interface WidgetSettings {
   primary_color?: string;

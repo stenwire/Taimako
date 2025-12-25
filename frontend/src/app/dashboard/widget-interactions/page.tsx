@@ -8,7 +8,7 @@ import { User, MessageSquare, Clock, Smartphone, RefreshCw, RotateCcw, Sparkles 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const BACKEND_URL = 'http://localhost:8000'; // Env var
+import { BACKEND_URL } from '@/config';
 
 interface GuestVisitor {
   id: string;

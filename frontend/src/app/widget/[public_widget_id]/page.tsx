@@ -47,7 +47,7 @@ interface SessionHistory {
   summary?: string;
 }
 
-const BACKEND_URL = 'http://localhost:8000';
+import { BACKEND_URL } from '@/config';
 
 export default function WidgetPage() {
   const params = useParams();

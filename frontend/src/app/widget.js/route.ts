@@ -1,6 +1,10 @@
-(function () {
-  const BACKEND_URL = "http://localhost:8000";
-  const FRONTEND_URL = "http://localhost:3000";
+import { NextRequest, NextResponse } from 'next/server';
+import { BACKEND_URL, FRONTEND_URL } from '@/config';
+
+export async function GET() {
+  const scriptContent = `(function () {
+  const BACKEND_URL = "${BACKEND_URL}";
+  const FRONTEND_URL = "${FRONTEND_URL}";
 
   // Find script with data-widget-id
   let currentScript = null;
@@ -30,7 +34,7 @@
   document.body.appendChild(container);
 
   // Fetch widget config
-  fetch(`${BACKEND_URL}/widgets/config/${widgetId}`)
+  fetch(\`\${BACKEND_URL}/widgets/config/\${widgetId}\`)
     .then(res => {
       if (!res.ok) throw new Error("Failed to load widget config");
       return res.json();
@@ -100,7 +104,7 @@
 
     // Iframe
     const iframe = document.createElement("iframe");
-    iframe.src = `${FRONTEND_URL}/widget/${widgetId}?${params.toString()}`;
+    iframe.src = \`\${FRONTEND_URL}/widget/\${widgetId}?\${params.toString()}\`;
     iframe.title = "Taimako.AI Chat Widget";
     iframe.allow = "clipboard-write";
     iframe.style.width = "100%";
@@ -162,4 +166,11 @@
       e.stopPropagation();
     });
   }
-})();
+})();`;
+
+  return new NextResponse(scriptContent, {
+    headers: {
+      'Content-Type': 'application/javascript',
+    },
+  });
+}
