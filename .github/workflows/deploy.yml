@@ -69,8 +69,15 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache-backend
-          cache-to: type=local,dest=/tmp/.buildx-cache-backend,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Cleanup Docker buildx
+        if: always()
+        run: |
+          docker buildx prune -af --keep-storage=1GB
+          docker system prune -af --volumes
+          rm -rf /tmp/.buildx-cache-backend || true
 
   build-and-push-frontend:
     runs-on: ld-vps-runner
@@ -111,8 +118,15 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache-frontend
-          cache-to: type=local,dest=/tmp/.buildx-cache-frontend,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Cleanup Docker buildx
+        if: always()
+        run: |
+          docker buildx prune -af --keep-storage=1GB
+          docker system prune -af --volumes
+          rm -rf /tmp/.buildx-cache-frontend || true
 
   deploy:
     needs: [build-and-push-backend, build-and-push-frontend]
