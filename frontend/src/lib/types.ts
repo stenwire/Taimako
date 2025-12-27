@@ -16,9 +16,11 @@ export interface BusinessProfile {
   custom_agent_instruction: string;
   intents?: string[];
   logo_url?: string;
+  is_api_key_set?: boolean;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface CreateBusinessProfileData {
   business_name: string;
@@ -186,6 +188,7 @@ export interface Guest {
   name: string;
   email: string | null;
   phone: string | null;
+  is_lead: boolean;
   created_at: string;
   // last_seen_at? backend has it but schema might only return created_at?
   // GuestUserResponse in widget.py: id, name, email, phone, created_at.

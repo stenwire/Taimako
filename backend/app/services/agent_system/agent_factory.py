@@ -22,22 +22,32 @@ class AgentFactory:
     """Factory for creating dynamically configured agents based on business settings."""
     
     @staticmethod
-    def create_greeting_agent():
+    def _get_model(api_key: Optional[str] = None):
+        """Get the appropriate model, with API key if provided."""
+        if api_key:
+            model_name = MODEL_GEMINI_2_0_FLASH
+            if not model_name.startswith("gemini/"):
+                model_name = f"gemini/{model_name}"
+            return LiteLlm(model=model_name, api_key=api_key)
+        return MODEL_GEMINI_2_0_FLASH
+    
+    @staticmethod
+    def create_greeting_agent(api_key: Optional[str] = None):
         """Create the greeting sub-agent."""
         return Agent(
             name="greeting_agent",
-            model=MODEL_GEMINI_2_0_FLASH,
+            model=AgentFactory._get_model(api_key),
             description="Handles simple greetings.",
             instruction="You are a friendly greeting agent. Use 'say_hello' to greet the user.",
             tools=[say_hello]
         )
     
     @staticmethod
-    def create_farewell_agent():
+    def create_farewell_agent(api_key: Optional[str] = None):
         """Create the farewell sub-agent."""
         return Agent(
             name="farewell_agent",
-            model=MODEL_GEMINI_2_0_FLASH,
+            model=AgentFactory._get_model(api_key),
             description="Handles simple farewells.",
             instruction="You are a polite farewell agent. Use 'say_goodbye' to say goodbye.",
             tools=[say_goodbye]
@@ -73,24 +83,15 @@ class AgentFactory:
             "Present the context clearly."
         )
         
-        # Create sub-agents
-        greeting_agent = AgentFactory.create_greeting_agent()
-        farewell_agent = AgentFactory.create_farewell_agent()
+        # Create sub-agents with the API key
+        greeting_agent = AgentFactory.create_greeting_agent(api_key)
+        farewell_agent = AgentFactory.create_farewell_agent(api_key)
         
-        # Determine model to use
-        model = MODEL_GEMINI_2_0_FLASH
-        if api_key:
-             # Use LiteLlm with specific API key if provided
-             # Note: LiteLlm requires provider prefix 'gemini/' usually if using litellm directly, 
-             # but ADK might handle "gemini-2.0-flash".
-             # Safest is to try preserving the string if it works, OR wrap it.
-             # Assuming LiteLlm constructor takes model and api_key.
-             # If "gemini-2.0-flash" works as string, we use it.
-             # Helper to ensure we use the right format for LiteLlm if needed.
-             model_name = MODEL_GEMINI_2_0_FLASH
-             if not model_name.startswith("gemini/"):
-                 model_name = f"gemini/{model_name}"
-             model = LiteLlm(model=model_name, api_key=api_key)
+        # Determine model to use - API key is required
+        if not api_key:
+            raise ValueError("API Key is required for this business configuration.")
+        
+        model = AgentFactory._get_model(api_key)
 
         # Create and return the main RAG agent
         return Agent(

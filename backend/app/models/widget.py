@@ -53,6 +53,7 @@ class GuestUser(Base):
     last_seen_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     total_sessions = Column(Integer, default=0)
     is_returning = Column(Boolean, default=False)
+    is_lead = Column(Boolean, default=False)
 
     # Relationships
     widget = relationship("WidgetSettings", back_populates="guests")

@@ -154,6 +154,12 @@ export const updateBusinessProfile = async (
   return response.data;
 };
 
+export const validateApiKey = async (apiKey: string): Promise<ApiResponse<void>> => {
+  const response = await api.post('/business/validate-key', { api_key: apiKey });
+  return response.data;
+};
+
+
 export const generateIntents = async (): Promise<ApiResponse<{ intents: string[] }>> => {
   const response = await api.post('/business/generate-intents');
   return response.data;
@@ -263,6 +269,11 @@ export const getGuestSessions = async (guestId: string): Promise<GuestSession[]>
 export const analyzeSession = async (sessionId: string): Promise<GuestSession> => {
   const response = await api.post(`/widgets/session/${sessionId}/analyze`);
   return response.data.data || response.data;
+};
+
+export const toggleLeadStatus = async (guestId: string, isLead: boolean): Promise<Guest> => {
+  const response = await api.put(`/widgets/guests/${guestId}/lead`, { is_lead: isLead });
+  return response.data.data;
 };
 
 

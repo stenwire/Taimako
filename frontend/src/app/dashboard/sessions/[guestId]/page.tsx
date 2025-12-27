@@ -4,11 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft, MessageSquare, Clock, MapPin, Smartphone,
-  ChevronRight, Sparkles
+  ChevronRight, Sparkles, Star, Loader2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { getGuestSessions } from '@/lib/api';
-import { GuestSession } from '@/lib/types';
+import { getGuestSessions, getGuests, toggleLeadStatus } from '@/lib/api';
+import { GuestSession, Guest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export default function GuestSessionsList() {
@@ -17,33 +17,87 @@ export default function GuestSessionsList() {
   const guestId = params.guestId as string;
 
   const [sessions, setSessions] = useState<GuestSession[]>([]);
+  const [guest, setGuest] = useState<Guest | null>(null);
   const [loading, setLoading] = useState(true);
+  const [togglingLead, setTogglingLead] = useState(false);
 
   useEffect(() => {
-    async function loadSessions() {
+    async function loadData() {
       if (!guestId) return;
       try {
-        const data = await getGuestSessions(guestId);
-        setSessions(data);
+        const [sessionsData, guestsData] = await Promise.all([
+          getGuestSessions(guestId),
+          getGuests()
+        ]);
+        setSessions(sessionsData);
+        // Find the current guest from the list
+        const currentGuest = guestsData.find((g: Guest) => g.id === guestId);
+        if (currentGuest) {
+          setGuest(currentGuest);
+        }
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     }
-    loadSessions();
+    loadData();
   }, [guestId]);
+
+  const handleToggleLead = async () => {
+    if (!guest) return;
+    setTogglingLead(true);
+    try {
+      const updatedGuest = await toggleLeadStatus(guest.id, !guest.is_lead);
+      setGuest(updatedGuest);
+    } catch (error) {
+      console.error('Failed to toggle lead status:', error);
+    } finally {
+      setTogglingLead(false);
+    }
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto h-[calc(100vh-140px)] flex flex-col">
-      <div className="mb-6 flex-shrink-0 flex items-center gap-4">
-        <Button variant="secondary" onClick={() => router.back()} className="rounded-full px-3">
-          <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-space font-bold text-[var(--brand-primary)]">Guest History</h1>
-          <p className="text-[var(--text-secondary)]">View past conversations for this guest.</p>
+      <div className="mb-6 flex-shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="secondary" onClick={() => router.back()} className="rounded-full px-3">
+            <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-space font-bold text-[var(--brand-primary)]">
+                {guest?.name || 'Guest History'}
+              </h1>
+              {guest?.is_lead && (
+                <span className="px-3 py-1 text-sm font-semibold bg-[var(--status-success)]/10 text-[var(--status-success)] rounded-full border border-[var(--status-success)]/20">
+                  Lead
+                </span>
+              )}
+            </div>
+            <p className="text-[var(--text-secondary)]">View past conversations for this guest.</p>
+          </div>
         </div>
+
+        {guest && (
+          <button
+            onClick={handleToggleLead}
+            disabled={togglingLead}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all",
+              guest.is_lead
+                ? "bg-[var(--status-success)]/10 text-[var(--status-success)] hover:bg-[var(--status-success)]/20 border border-[var(--status-success)]/20"
+                : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)]"
+            )}
+          >
+            {togglingLead ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Star className={cn("w-4 h-4", guest.is_lead && "fill-current")} />
+            )}
+            {guest.is_lead ? "Lead" : "Mark as Lead"}
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pb-10">

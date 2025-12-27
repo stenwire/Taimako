@@ -20,7 +20,15 @@ class GuestUserResponse(BaseModel):
     name: str
     email: Optional[str]
     phone: Optional[str]
+    is_lead: bool = False
     created_at: datetime
+    
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        # Handle None value for is_lead from database
+        if hasattr(obj, 'is_lead') and obj.is_lead is None:
+            obj.is_lead = False
+        return super().model_validate(obj, **kwargs)
     
     class Config:
         from_attributes = True

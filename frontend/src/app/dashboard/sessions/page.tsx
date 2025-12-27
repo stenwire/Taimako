@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Users, Search, ChevronRight, Mail, Phone, Calendar
+  Users, Search, ChevronRight, Mail, Phone, Calendar, Star, Loader2
 } from 'lucide-react';
 import Card from '@/components/ui/Card';
-import { getGuests } from '@/lib/api';
+import { getGuests, toggleLeadStatus } from '@/lib/api';
 import { Guest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +15,7 @@ export default function SessionsGuestList() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadGuests() {
@@ -29,6 +30,19 @@ export default function SessionsGuestList() {
     }
     loadGuests();
   }, []);
+
+  const handleToggleLead = async (e: React.MouseEvent, guest: Guest) => {
+    e.stopPropagation(); // Prevent row click navigation
+    setTogglingId(guest.id);
+    try {
+      const updatedGuest = await toggleLeadStatus(guest.id, !guest.is_lead);
+      setGuests(prev => prev.map(g => g.id === guest.id ? updatedGuest : g));
+    } catch (error) {
+      console.error('Failed to toggle lead status:', error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const filteredGuests = guests.filter(g =>
     (g.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -58,9 +72,10 @@ export default function SessionsGuestList() {
         {/* Header Row */}
         <div className="grid grid-cols-12 gap-4 p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
           <div className="col-span-4 pl-2">Customer</div>
-          <div className="col-span-4">Contact Info</div>
+          <div className="col-span-3">Contact Info</div>
           <div className="col-span-2">First Seen</div>
-          <div className="col-span-2 text-right pr-4">Action</div>
+          <div className="col-span-2 text-center">Lead Status</div>
+          <div className="col-span-1 text-right pr-4">Action</div>
         </div>
 
         {/* List */}
@@ -80,15 +95,25 @@ export default function SessionsGuestList() {
                 className="grid grid-cols-12 gap-4 p-4 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-primary)] transition-colors cursor-pointer group items-center"
               >
                 <div className="col-span-4 pl-2 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center font-bold shadow-sm">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full text-white flex items-center justify-center font-bold shadow-sm",
+                    guest.is_lead ? "bg-[var(--status-success)]" : "bg-[var(--brand-primary)]"
+                  )}>
                     {(guest.name || 'A').charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-medium text-[var(--text-primary)]">{guest.name || "Anonymous Guest"}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-[var(--text-primary)]">{guest.name || "Anonymous Guest"}</h3>
+                      {guest.is_lead && (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-[var(--status-success)]/10 text-[var(--status-success)] rounded-full border border-[var(--status-success)]/20">
+                          Lead
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[var(--text-tertiary)] font-mono truncate max-w-[150px]">{guest.id.substring(0, 8)}...</p>
                   </div>
                 </div>
-                <div className="col-span-4 space-y-1">
+                <div className="col-span-3 space-y-1">
                   {guest.email && (
                     <div className="flex items-center text-sm text-[var(--text-secondary)]">
                       <Mail className="w-3.5 h-3.5 mr-2 text-[var(--text-tertiary)]" /> {guest.email}
@@ -105,7 +130,26 @@ export default function SessionsGuestList() {
                   <Calendar className="w-3.5 h-3.5 mr-2 text-[var(--text-tertiary)]" />
                   {new Date(guest.created_at).toLocaleDateString()}
                 </div>
-                <div className="col-span-2 flex justify-end pr-4">
+                <div className="col-span-2 flex justify-center">
+                  <button
+                    onClick={(e) => handleToggleLead(e, guest)}
+                    disabled={togglingId === guest.id}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all",
+                      guest.is_lead
+                        ? "bg-[var(--status-success)]/10 text-[var(--status-success)] hover:bg-[var(--status-success)]/20 border border-[var(--status-success)]/20"
+                        : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)]"
+                    )}
+                  >
+                    {togglingId === guest.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Star className={cn("w-3.5 h-3.5", guest.is_lead && "fill-current")} />
+                    )}
+                    {guest.is_lead ? "Lead" : "Mark as Lead"}
+                  </button>
+                </div>
+                <div className="col-span-1 flex justify-end pr-4">
                   <button className="p-2 rounded-full hover:bg-[var(--border-subtle)] text-[var(--text-tertiary)] group-hover:text-[var(--brand-primary)] transition-colors">
                     <ChevronRight className="w-5 h-5" />
                   </button>

@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import { getBusinessProfile, createBusinessProfile, updateBusinessProfile } from '@/lib/api';
+import { useBusiness } from '@/contexts/BusinessContext';
 import type { BusinessProfile, CreateBusinessProfileData } from '@/lib/types';
 
 export default function BusinessProfilePage() {
@@ -15,9 +16,13 @@ export default function BusinessProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [personality, setPersonality] = useState('custom');
+
+  // Get the refresh function from context to update global API key state
+  const { refreshBusinessProfile } = useBusiness();
 
   const [formData, setFormData] = useState<CreateBusinessProfileData>({
     business_name: '',
@@ -95,6 +100,10 @@ export default function BusinessProfilePage() {
         setSuccess('Business profile created successfully!');
       }
       setEditing(false);
+      // Refresh local profile data
+      await fetchProfile();
+      // Refresh global context to update sidebar/lockout state immediately
+      await refreshBusinessProfile();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -207,6 +216,10 @@ export default function BusinessProfilePage() {
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   disabled={!editing}
                 />
+              </div>
+
+              {/* Logo URL and API Key Row - Aligned */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Logo URL"
                   type="url"
@@ -215,14 +228,75 @@ export default function BusinessProfilePage() {
                   onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                   disabled={!editing}
                 />
-                <Input
-                  label="Google Gemini API Key"
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={formData.gemini_api_key || ''}
-                  onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
-                  disabled={!editing}
-                />
+
+                {/* API Key Input + Validation */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[var(--text-secondary)] text-[13px] font-medium">
+                      Google Gemini API Key
+                    </label>
+                    {profile?.is_api_key_set && !editing && (
+                      <span className="text-[12px] font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Key Set
+                      </span>
+                    )}
+                    {(!profile || !profile.is_api_key_set) && !editing && (
+                      <span className="text-[12px] font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Not Set
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <input
+                        type="password"
+                        placeholder={profile?.is_api_key_set && !editing ? "••••••••••••••••" : "AIzaSy..."}
+                        value={formData.gemini_api_key || ''}
+                        onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
+                        disabled={!editing}
+                        className="w-full px-3 py-2 text-[14px] bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] placeholder:text-[var(--text-tertiary)] focus-ring transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Test Button with Spinner */}
+                    {editing && (
+                      <Button
+                        onClick={async () => {
+                          const key = formData.gemini_api_key;
+                          if (!key) {
+                            setError("Please enter a key to test");
+                            return;
+                          }
+                          setTesting(true);
+                          setError('');
+                          try {
+                            const { validateApiKey } = await import('@/lib/api');
+                            await validateApiKey(key);
+                            setSuccess("API Key is valid!");
+                            setTimeout(() => setSuccess(''), 3000);
+                          } catch (e) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const err = e as any;
+                            setError(`Invalid Key: ${err.response?.data?.detail || err.message}`);
+                          } finally {
+                            setTesting(false);
+                          }
+                        }}
+                        type="button"
+                        variant="secondary"
+                        className="h-[38px]"
+                        disabled={!formData.gemini_api_key || testing}
+                        loading={testing}
+                      >
+                        {testing ? '' : 'Test'}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                    Required for the AI agent to function.
+                  </p>
+                </div>
               </div>
               <div>
                 <label className="block text-[var(--text-secondary)] text-[13px] font-medium mb-2">

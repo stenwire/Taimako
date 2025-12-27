@@ -1,39 +1,74 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, FileText, MessageSquare, LogOut, Menu, X, Settings, Users } from 'lucide-react';
-import Sidebar from '@/components/ui/Sidebar';
+import { LayoutDashboard, Building2, FileText, MessageSquare, LogOut, Menu, X, Settings, Users, AlertTriangle, Bot } from 'lucide-react';
+import Sidebar, { SidebarSection } from '@/components/ui/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness, BusinessProvider } from '@/contexts/BusinessContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 
-export default function DashboardLayout({
+function DashboardLayoutInner({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const { user, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const sidebarSections = [
+  const { isApiKeySet, isLoading, refreshBusinessProfile } = useBusiness();
+
+  // Check for API key status on mount and when user changes
+  useEffect(() => {
+    if (user) {
+      refreshBusinessProfile();
+    }
+  }, [user, refreshBusinessProfile]);
+
+  // Redirect if locked and trying to access other pages
+  useEffect(() => {
+    if (!isLoading && !isApiKeySet) {
+      if (pathname !== '/dashboard/business') {
+        router.push('/dashboard/business');
+      }
+    }
+  }, [isApiKeySet, isLoading, pathname, router]);
+
+  const apiKeyMissing = !isApiKeySet;
+  const checkingKey = isLoading;
+
+  const baseSidebarSections = [
     {
       items: [
         { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Sessions', href: '/dashboard/sessions', icon: MessageSquare },
-        { label: 'Analytics', href: '/dashboard/analytics', icon: Building2 }, // Building2 as placeholder if ChartIcon not imported
+        { label: 'Analytics', href: '/dashboard/analytics', icon: Building2 },
         { label: 'Knowledge Base', href: '/dashboard/documents', icon: FileText },
         { label: 'Widget', href: '/dashboard/widget-settings', icon: Settings },
         { label: 'Human Handoff', href: '/dashboard/handoff', icon: Users },
+        { label: 'Test Agent', href: '/dashboard/chat', icon: Bot },
         { label: 'Settings', href: '/dashboard/business', icon: Settings },
       ],
     },
   ];
 
+  // Apply lockout to sidebar
+  const sidebarSections: SidebarSection[] = baseSidebarSections.map(section => ({
+    ...section,
+    items: section.items.map(item => ({
+      ...item,
+      disabled: apiKeyMissing && item.href !== '/dashboard/business'
+    }))
+  }));
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-[var(--bg-secondary)] flex font-sans">
+
         {/* Mobile Header */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)] border-b border-[var(--border-subtle)] px-4 py-3 flex items-center justify-between">
           <h1 className="text-h2 font-space tracking-tight text-[var(--brand-primary)] font-bold">Taimako</h1>
@@ -122,15 +157,51 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-          <div className="pt-16 lg:pt-0 h-full">
-            <main className="p-4 lg:p-8 h-full overflow-y-auto">
-              <div className="max-w-[1440px] mx-auto w-full h-full">
-                {children}
+
+          {/* Missing Key Warning Banner */}
+          {apiKeyMissing && !checkingKey && (
+            <div className="bg-[var(--warning-bg)] border-l-4 border-[var(--warning)] p-4 sticky top-0 z-30 shadow-md">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-[var(--warning)]" aria-hidden="true" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-[var(--warning-text)]">
+                    <span className="font-bold">Action Required: </span>
+                    You must set your Google Gemini API Key in <span className="font-bold cursor-pointer underline" onClick={() => router.push('/dashboard/business')}>Settings</span> to use the AI features. Access to other pages is restricted until configured.
+                  </p>
+                </div>
               </div>
-            </main>
+            </div>
+          )}
+
+          <div className={`h-full ${apiKeyMissing ? '' : 'pt-16 lg:pt-0'}`}>
+            {/* If blocked, mobile header might overlap if we don't account for paddingTop. 
+                 The original had pt-16 lg:pt-0. If we add banner, we shift content down. 
+                 Actually, just keep original padding. Content is children.
+             */}
+            <div className="pt-16 lg:pt-0 h-full">
+              <main className="p-4 lg:p-8 h-full overflow-y-auto">
+                <div className="max-w-[1440px] mx-auto w-full h-full">
+                  {children}
+                </div>
+              </main>
+            </div>
           </div>
         </div>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <BusinessProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </BusinessProvider>
   );
 }

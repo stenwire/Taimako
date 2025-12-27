@@ -8,7 +8,9 @@ export interface SidebarItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  disabled?: boolean;
 }
+
 
 export interface SidebarSection {
   title?: string;
@@ -40,6 +42,26 @@ const Sidebar: React.FC<SidebarProps> = ({ sections, collapsed = false }) => {
               {section.items.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
+
+                if (item.disabled) {
+                  return (
+                    <div
+                      key={item.href}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-200 group relative',
+                        'text-[14px] font-medium opacity-50 cursor-not-allowed bg-transparent text-[var(--text-tertiary)]'
+                      )}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0 text-[var(--text-tertiary)]" />
+                      {!collapsed && <span>{item.label}</span>}
+                      {collapsed && (
+                        <div className="absolute left-14 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                          {item.label} (Locked)
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
                 return (
                   <Link
